@@ -13,6 +13,11 @@ import type {
 import type { TranscriptionResult } from "./lib/types/transcription";
 import "./styles.css";
 
+const isTauriRuntime =
+  typeof window !== "undefined" &&
+  typeof (window as typeof window & { __TAURI_INTERNALS__?: { invoke?: unknown } })
+    .__TAURI_INTERNALS__?.invoke === "function";
+
 let models: ModelInfo[] = [];
 let installed: InstalledModel[] = [];
 let settings: AppSettings = {
@@ -46,6 +51,19 @@ function installedMap() {
 function setStatus(next: string) {
   status = next;
   render();
+}
+
+function requireTauri(feature: string) {
+  if (isTauriRuntime) return;
+  throw new Error(`${feature} requires Tauri runtime. Use 'npm run tauri dev'.`);
+}
+
+async function copyText(text: string) {
+  if (isTauriRuntime) {
+    await writeText(text);
+    return;
+  }
+  await navigator.clipboard.writeText(text);
 }
 
 function encodeWav(samples: Float32Array, sampleRate: number): Uint8Array {
@@ -159,6 +177,7 @@ async function startRecording() {
 }
 
 async function stopRecordingAndTranscribe() {
+  requireTauri("Recording transcription");
   if (!isRecording || !audioCtx) return;
   if (liveTimer) {
     window.clearInterval(liveTimer);
@@ -191,11 +210,12 @@ async function stopRecordingAndTranscribe() {
     translate: settings.translate,
   });
   transcript = result.text;
-  if (settings.autoCopy && transcript) await writeText(transcript);
+  if (settings.autoCopy && transcript) await copyText(transcript);
   setStatus("done");
 }
 
 async function startFileTranscription() {
+  requireTauri("File transcription");
   const file = await open({ multiple: false });
   if (!file || Array.isArray(file)) return;
   const task = await api.startTranscriptionFile(file, {
@@ -225,7 +245,11 @@ ${
         activeTranscriptionTaskId
           ? `<button id="cancel-transcription">Cancel Transcription</button>`
           : ""
-      }<button id="copy-text">Copy</button><button id="clear-text">Clear</button></div><textarea rows="16">${transcript}</textarea></section>`
+      }<button id="copy-text">Copy</button><button id="clear-text">Clear</button></div><textarea rows="16">${transcript}</textarea>${
+        isTauriRuntime
+          ? ""
+          : `<p class="muted">Web preview mode: backend commands are disabled. Run <code>npm run tauri dev</code> for full functionality.</p>`
+      }</section>`
     : ""
 }
 ${
@@ -301,7 +325,7 @@ ${
     setStatus("cancel requested");
   });
 
-  root.querySelector("#copy-text")?.addEventListener("click", async () => writeText(transcript));
+  root.querySelector("#copy-text")?.addEventListener("click", async () => copyText(transcript));
   root.querySelector("#clear-text")?.addEventListener("click", () => {
     transcript = "";
     render();
@@ -336,6 +360,50 @@ ${
 }
 
 async function bootstrap() {
+  if (!isTauriRuntime) {
+    status = "web preview mode";
+    models = [
+      {
+        id: "base",
+        name: "Base",
+        description: "Fast and lightweight model for quick local transcription.",
+        url: "",
+        fileName: "",
+        recommended: true,
+      },
+      {
+        id: "small",
+        name: "Small",
+        description: "Balanced quality and speed for everyday local use.",
+        url: "",
+        fileName: "",
+        recommended: false,
+      },
+      {
+        id: "medium",
+        name: "Medium",
+        description: "Higher quality with increased local compute usage.",
+        url: "",
+        fileName: "",
+        recommended: false,
+      },
+      {
+        id: "large-v3",
+        name: "Large v3",
+        description: "Best quality model with the highest resource requirements.",
+        url: "",
+        fileName: "",
+        recommended: false,
+      },
+    ];
+    installed = [];
+    appDataDir = "(Tauri runtime unavailable in plain Vite dev mode)";
+    backendAudioInputs = [];
+    await refreshBrowserAudioInputs();
+    render();
+    return;
+  }
+
   models = await api.listModels();
   installed = await api.getInstalledModels();
   settings = await api.getSettings();
@@ -377,7 +445,7 @@ async function bootstrap() {
   await listen<{ taskId: string; result: TranscriptionResult }>("transcription-complete", async (event) => {
     if (activeTranscriptionTaskId !== event.payload.taskId) return;
     transcript = event.payload.result.text;
-    if (settings.autoCopy && transcript) await writeText(transcript);
+    if (settings.autoCopy && transcript) await copyText(transcript);
     activeTranscriptionTaskId = null;
     setStatus("done");
   });
