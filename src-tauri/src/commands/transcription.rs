@@ -32,6 +32,7 @@ pub async fn transcribe_file(
     let model_path = state
         .model_manager
         .model_path(&app, &options.model_id)
+        .await
         .map_err(String::from)?;
 
     if !model_path.exists() {
@@ -78,6 +79,7 @@ pub async fn transcribe_pcm(
     let model_path = state
         .model_manager
         .model_path(&app, &options.model_id)
+        .await
         .map_err(String::from)?;
 
     if !model_path.exists() {
@@ -148,7 +150,7 @@ pub async fn start_transcription_file(
             },
         );
 
-        let model_path = match state_ref.model_path(&app_handle, &options.model_id) {
+        let model_path = match state_ref.model_path(&app_handle, &options.model_id).await {
             Ok(path) => path,
             Err(err) => {
                 let _ = app_handle.emit(

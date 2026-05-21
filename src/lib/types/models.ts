@@ -5,6 +5,8 @@ export type ModelInfo = {
   url: string;
   fileName: string;
   recommended: boolean;
+  fastest: boolean;
+  bestQuality: boolean;
   sizeBytes?: number;
 };
 

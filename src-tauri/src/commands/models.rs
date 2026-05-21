@@ -7,18 +7,23 @@ use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
 
 #[tauri::command]
-pub fn list_models(state: State<'_, AppState>) -> Result<Vec<ModelInfo>, String> {
-    Ok(state.manifest())
+pub async fn list_models(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<ModelInfo>, String> {
+    state
+        .model_manager
+        .list_models(&app)
+        .await
+        .map_err(String::from)
 }
 
 #[tauri::command]
-pub fn get_installed_models(
+pub async fn get_installed_models(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Vec<InstalledModel>, String> {
     state
         .model_manager
         .installed_models(&app)
+        .await
         .map_err(String::from)
 }
 
@@ -28,10 +33,15 @@ pub async fn download_model(
     state: State<'_, AppState>,
     model_id: String,
 ) -> Result<DownloadTaskInfo, String> {
-    let model = state.model_manager.get_model(&model_id).map_err(String::from)?;
+    let model = state
+        .model_manager
+        .get_model(&app, &model_id)
+        .await
+        .map_err(String::from)?;
     let model_path = state
         .model_manager
         .model_path(&app, &model_id)
+        .await
         .map_err(String::from)?;
 
     let task_id = Uuid::new_v4().to_string();
@@ -94,7 +104,7 @@ pub async fn cancel_download(state: State<'_, AppState>, task_id: String) -> Res
 }
 
 #[tauri::command]
-pub fn delete_model(
+pub async fn delete_model(
     app: AppHandle,
     state: State<'_, AppState>,
     model_id: String,
@@ -102,5 +112,6 @@ pub fn delete_model(
     state
         .model_manager
         .delete_model(&app, &model_id)
+        .await
         .map_err(String::from)
 }

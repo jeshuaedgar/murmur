@@ -1,4 +1,3 @@
-use crate::domain::model_manifest::ModelInfo;
 use crate::services::model_manager::ModelManager;
 use crate::services::whisper_service::WhisperService;
 use std::collections::HashMap;
@@ -51,9 +50,5 @@ impl AppState {
             download_flags: Mutex::new(HashMap::new()),
             transcription_flags: Mutex::new(HashMap::new()),
         }
-    }
-
-    pub fn manifest(&self) -> Vec<ModelInfo> {
-        self.model_manager.list_models()
     }
 }
