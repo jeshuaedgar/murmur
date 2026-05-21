@@ -45,6 +45,16 @@ npm run tauri build
 
 Tauri produces platform-native artifacts (`.app`, `.msi`/`.exe`, `.AppImage`/`.deb` depending on host/targets).
 
+## Tray and Close Behavior
+
+- Closing the main window hides Murmur to the tray/menu bar instead of exiting.
+- Use the tray menu `Show/Hide` to toggle the main window.
+- Use the tray menu `Quit` to fully exit the app.
+
+Platform notes:
+- macOS: Murmur appears in the menu bar status area.
+- Windows: Murmur appears in the notification area (system tray).
+
 ## Privacy model
 
 - Audio is transcribed locally via `whisper.cpp` through `whisper-rs`.

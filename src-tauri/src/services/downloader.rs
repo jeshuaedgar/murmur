@@ -25,7 +25,12 @@ pub async fn download_to_file(
     final_path: PathBuf,
     cancel_flag: Arc<AtomicBool>,
 ) -> Result<(), AppError> {
-    let allowed = ["https://huggingface.co/ggerganov/whisper.cpp/"];
+    let allowed = [
+        "https://huggingface.co/ggerganov/whisper.cpp/",
+        "https://huggingface.co/distil-whisper/distil-large-v3-ggml/",
+        "https://huggingface.co/distil-whisper/distil-large-v3.5-ggml/",
+        "https://huggingface.co/distil-whisper/distil-small.en/",
+    ];
     if !allowed.iter().any(|prefix| url.starts_with(prefix)) {
         return Err(AppError::InvalidInput("model URL is not allowlisted".to_string()));
     }

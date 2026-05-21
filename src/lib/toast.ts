@@ -17,6 +17,10 @@ type ToastOptions = {
   link?: ToastLink;
 };
 
+function modelDownloadToastId(taskId: string) {
+  return `model-download-${taskId}`;
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -152,4 +156,32 @@ export function toastWarning(message: string, descriptionOrOptions?: string | To
   const options: ToastOptions =
     typeof descriptionOrOptions === "string" ? { description: descriptionOrOptions } : (descriptionOrOptions ?? {});
   toast.warning(message, { description: options.description, action: toToastAction(options.link) });
+}
+
+export function toastModelDownloadProgress(taskId: string, modelId: string, progressPct?: number) {
+  const hasProgress = typeof progressPct === "number";
+  const rounded = hasProgress ? Math.min(100, Math.max(0, Math.round(progressPct!))) : null;
+  const description = rounded === null ? "Preparing download..." : `${rounded}% complete`;
+  toast.loading(`Downloading ${modelId}`, {
+    id: modelDownloadToastId(taskId),
+    duration: Infinity,
+    description,
+    action: toToastAction({ label: "Open Models", to: "/models" }),
+  });
+}
+
+export function toastModelDownloadComplete(taskId: string, modelId: string) {
+  toast.success("Model installed", {
+    id: modelDownloadToastId(taskId),
+    description: modelId,
+  });
+}
+
+export function toastModelDownloadFailed(taskId: string, error: unknown, fallbackTitle: string) {
+  const message = buildUserMessage(error, fallbackTitle);
+  toast.error(message.title, {
+    id: modelDownloadToastId(taskId),
+    description: message.description,
+    action: toToastAction(message.link ?? { label: "Open Models", to: "/models" }),
+  });
 }

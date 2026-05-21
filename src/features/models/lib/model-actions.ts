@@ -10,10 +10,15 @@ type UseModelActionsArgs = {
 
 export function useModelActions({ models, downloadModel, deleteModel, checkConnectivity }: UseModelActionsArgs) {
   const [pendingRemoveModelId, setPendingRemoveModelId] = useState<string | null>(null);
+  const [pendingRedownloadModelId, setPendingRedownloadModelId] = useState<string | null>(null);
 
   const pendingModel = useMemo(
     () => models.find((model) => model.id === pendingRemoveModelId) ?? null,
     [models, pendingRemoveModelId],
+  );
+  const pendingRedownloadModel = useMemo(
+    () => models.find((model) => model.id === pendingRedownloadModelId) ?? null,
+    [models, pendingRedownloadModelId],
   );
 
   const openRemoveConfirmation = useCallback((modelId: string) => {
@@ -32,8 +37,28 @@ export function useModelActions({ models, downloadModel, deleteModel, checkConne
     setPendingRemoveModelId(null);
   }, [deleteModel, pendingRemoveModelId]);
 
+  const closeRedownloadConfirmation = useCallback(() => {
+    setPendingRedownloadModelId(null);
+  }, []);
+
+  const confirmRedownload = useCallback(async () => {
+    if (!pendingRedownloadModelId) {
+      return;
+    }
+    const isConnected = await checkConnectivity();
+    if (!isConnected) {
+      return;
+    }
+    await downloadModel(pendingRedownloadModelId).catch(() => undefined);
+    setPendingRedownloadModelId(null);
+  }, [checkConnectivity, downloadModel, pendingRedownloadModelId]);
+
   const handleDownload = useCallback(
-    async (modelId: string) => {
+    async (modelId: string, isInstalled: boolean) => {
+      if (isInstalled) {
+        setPendingRedownloadModelId(modelId);
+        return;
+      }
       const isConnected = await checkConnectivity();
       if (!isConnected) {
         return;
@@ -46,9 +71,13 @@ export function useModelActions({ models, downloadModel, deleteModel, checkConne
   return {
     pendingRemoveModelId,
     pendingModel,
+    pendingRedownloadModelId,
+    pendingRedownloadModel,
     openRemoveConfirmation,
     closeRemoveConfirmation,
     confirmRemove,
+    closeRedownloadConfirmation,
+    confirmRedownload,
     handleDownload,
   };
 }

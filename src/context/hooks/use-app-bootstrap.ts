@@ -11,7 +11,14 @@ import type {
 } from "@/lib/types/models";
 import type { TranscriptionResult } from "@/lib/types/transcription";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
-import { getErrorMessage, toastError, toastSuccess } from "@/lib/toast";
+import {
+  getErrorMessage,
+  toastError,
+  toastModelDownloadComplete,
+  toastModelDownloadFailed,
+  toastModelDownloadProgress,
+  toastSuccess,
+} from "@/lib/toast";
 
 type UseAppBootstrapParams = {
   setModels: Dispatch<SetStateAction<ModelInfo[]>>;
@@ -46,6 +53,8 @@ export function useAppBootstrap({
 }: UseAppBootstrapParams) {
   const didInitRef = useRef(false);
   const lastStartupErrorRef = useRef<string | null>(null);
+  const downloadProgressFlushTimerRef = useRef<number | null>(null);
+  const pendingDownloadProgressRef = useRef<Map<string, DownloadProgressEvent>>(new Map());
 
   useEffect(() => {
     if (didInitRef.current) return;
@@ -115,11 +124,37 @@ export function useAppBootstrap({
 
       cleanup.push(
         await listen<DownloadProgressEvent>("model-download-progress", (event) => {
-          setDownloadProgress((prev) => {
-            const next = new Map(prev);
-            next.set(event.payload.taskId, event.payload);
-            return next;
-          });
+          pendingDownloadProgressRef.current.set(event.payload.taskId, event.payload);
+          if (downloadProgressFlushTimerRef.current !== null) {
+            return;
+          }
+          downloadProgressFlushTimerRef.current = window.setTimeout(() => {
+            downloadProgressFlushTimerRef.current = null;
+            setDownloadProgress((prev) => {
+              const next = new Map(prev);
+              for (const pendingEvent of pendingDownloadProgressRef.current.values()) {
+                const previous = next.get(pendingEvent.taskId);
+                const inferredPct =
+                  typeof pendingEvent.totalBytes === "number" && pendingEvent.totalBytes > 0
+                    ? (pendingEvent.downloadedBytes / pendingEvent.totalBytes) * 100
+                    : undefined;
+                const incomingPct =
+                  typeof pendingEvent.progressPct === "number" ? pendingEvent.progressPct : inferredPct;
+                const previousPct = previous?.progressPct;
+                const normalizedPct =
+                  typeof incomingPct === "number"
+                    ? Math.max(0, Math.min(100, Math.max(previousPct ?? 0, incomingPct)))
+                    : previousPct;
+                next.set(pendingEvent.taskId, {
+                  ...pendingEvent,
+                  progressPct: normalizedPct,
+                });
+                toastModelDownloadProgress(pendingEvent.taskId, pendingEvent.modelId, normalizedPct);
+              }
+              pendingDownloadProgressRef.current.clear();
+              return next;
+            });
+          }, 200);
         }),
       );
 
@@ -132,7 +167,7 @@ export function useAppBootstrap({
           });
           setInstalled(await api.getInstalledModels());
           setStatus(`model ${event.payload.modelId} installed`);
-          toastSuccess("Model installed", event.payload.modelId);
+          toastModelDownloadComplete(event.payload.taskId, event.payload.modelId);
         }),
       );
 
@@ -144,7 +179,11 @@ export function useAppBootstrap({
             return next;
           });
           setStatus(`Download failed for ${event.payload.modelId}. ${getErrorMessage(event.payload.error, "Please try again.")}`);
-          toastError(event.payload.error, `Download failed for ${event.payload.modelId}`);
+          toastModelDownloadFailed(
+            event.payload.taskId,
+            event.payload.error,
+            `Download failed for ${event.payload.modelId}`,
+          );
         }),
       );
 
@@ -212,6 +251,11 @@ export function useAppBootstrap({
     return () => {
       didInitRef.current = false;
       mounted = false;
+      if (downloadProgressFlushTimerRef.current !== null) {
+        window.clearTimeout(downloadProgressFlushTimerRef.current);
+      }
+      downloadProgressFlushTimerRef.current = null;
+      pendingDownloadProgressRef.current.clear();
       cleanup.forEach((unsub) => unsub());
       teardownRecordingResources();
     };

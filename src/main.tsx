@@ -12,7 +12,7 @@ ReactDOM.createRoot(document.getElementById("app")!).render(
     <TooltipProvider>
       <AppStateProvider>
         <RouterProvider router={router} />
-        <Toaster />
+        <Toaster toastOptions={{ duration: 5200 }} />
       </AppStateProvider>
     </TooltipProvider>
   </React.StrictMode>,

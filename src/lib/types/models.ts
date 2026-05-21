@@ -1,5 +1,6 @@
 export type ModelInfo = {
   id: string;
+  lab: string;
   name: string;
   description: string;
   url: string;

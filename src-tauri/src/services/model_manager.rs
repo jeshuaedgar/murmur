@@ -119,29 +119,83 @@ struct HfModelFile {
 
 #[derive(Debug, Deserialize)]
 struct HfModelResponse {
+    description: Option<String>,
     siblings: Vec<HfModelFile>,
 }
 
-async fn fetch_models_from_huggingface() -> Result<Vec<ModelInfo>, AppError> {
-    const HF_API_URL: &str = "https://huggingface.co/api/models/ggerganov/whisper.cpp?blobs=true";
-    let response: HfModelResponse = reqwest::Client::new()
-        .get(HF_API_URL)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+#[derive(Clone, Copy)]
+struct CatalogSource {
+    lab: &'static str,
+    api_url: &'static str,
+    resolve_base: &'static str,
+    id_hint: Option<&'static str>,
+}
 
-    let mut models = response
-        .siblings
-        .into_iter()
-        .filter(|file| is_primary_ggml_model(&file.rfilename))
-        .map(|file| {
-            let id = file
+const CATALOG_SOURCES: [CatalogSource; 4] = [
+    CatalogSource {
+        lab: "OpenAI Whisper",
+        api_url: "https://huggingface.co/api/models/ggerganov/whisper.cpp?blobs=true",
+        resolve_base: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/",
+        id_hint: None,
+    },
+    CatalogSource {
+        lab: "Distil-Whisper",
+        api_url: "https://huggingface.co/api/models/distil-whisper/distil-large-v3-ggml?blobs=true",
+        resolve_base: "https://huggingface.co/distil-whisper/distil-large-v3-ggml/resolve/main/",
+        id_hint: Some("distil-large-v3"),
+    },
+    CatalogSource {
+        lab: "Distil-Whisper",
+        api_url: "https://huggingface.co/api/models/distil-whisper/distil-large-v3.5-ggml?blobs=true",
+        resolve_base: "https://huggingface.co/distil-whisper/distil-large-v3.5-ggml/resolve/main/",
+        id_hint: Some("distil-large-v3.5"),
+    },
+    CatalogSource {
+        lab: "Distil-Whisper",
+        api_url: "https://huggingface.co/api/models/distil-whisper/distil-small.en?blobs=true",
+        resolve_base: "https://huggingface.co/distil-whisper/distil-small.en/resolve/main/",
+        id_hint: Some("distil-small.en"),
+    },
+];
+
+async fn fetch_models_from_huggingface() -> Result<Vec<ModelInfo>, AppError> {
+    let client = reqwest::Client::new();
+    let mut models = Vec::new();
+
+    for source in CATALOG_SOURCES {
+        let response = match client.get(source.api_url).send().await {
+            Ok(resp) => match resp.error_for_status() {
+                Ok(ok) => match ok.json::<HfModelResponse>().await {
+                    Ok(parsed) => parsed,
+                    Err(_) => continue,
+                },
+                Err(_) => continue,
+            },
+            Err(_) => continue,
+        };
+
+        let repo_description = response
+            .description
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(ToString::to_string);
+
+        for file in response
+            .siblings
+            .into_iter()
+            .filter(|file| is_compatible_ggml_model(source.lab, &file.rfilename))
+        {
+            let raw_id = file
                 .rfilename
                 .trim_start_matches("ggml-")
                 .trim_end_matches(".bin")
                 .to_string();
+            let id = if raw_id == "model" {
+                source.id_hint.unwrap_or("model").to_string()
+            } else {
+                raw_id
+            };
             let name = id
                 .split('-')
                 .map(|part| {
@@ -155,29 +209,35 @@ async fn fetch_models_from_huggingface() -> Result<Vec<ModelInfo>, AppError> {
                 })
                 .collect::<Vec<_>>()
                 .join(" ");
-            let description = describe_model(file.size);
+            let description = repo_description
+                .clone()
+                .unwrap_or_else(|| describe_model(file.size));
 
-            ModelInfo {
-                id,
+            let stable_id = if source.lab == "OpenAI Whisper" { id.clone() } else { format!("{}:{}", source.lab.to_lowercase().replace(' ', "-"), id) };
+
+            models.push(ModelInfo {
+                id: stable_id,
+                lab: source.lab.to_string(),
                 name,
                 description,
-                url: format!(
-                    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
-                    file.rfilename
-                ),
+                url: format!("{}{}", source.resolve_base, file.rfilename),
                 file_name: file.rfilename,
                 recommended: false,
                 fastest: false,
                 best_quality: false,
                 size_bytes: file.size,
-            }
-        })
-        .collect::<Vec<_>>();
+            });
+        }
+    }
 
     models.sort_by(|a, b| {
+        a.lab
+            .cmp(&b.lab)
+            .then_with(|| {
         a.size_bytes
             .unwrap_or(u64::MAX)
             .cmp(&b.size_bytes.unwrap_or(u64::MAX))
+            })
             .then_with(|| a.id.cmp(&b.id))
     });
 
@@ -214,6 +274,18 @@ fn is_primary_ggml_model(file_name: &str) -> bool {
         && !file_name.contains("-distil")
         && !file_name.contains("-tdrz")
         && !file_name.contains("-encoder")
+}
+
+fn is_compatible_ggml_model(lab: &str, file_name: &str) -> bool {
+    if lab == "Distil-Whisper" {
+        return file_name.starts_with("ggml-")
+            && file_name.ends_with(".bin")
+            && !file_name.contains("-q")
+            && !file_name.contains("-tdrz")
+            && !file_name.contains("-encoder")
+            && !file_name.contains(".fp32.");
+    }
+    is_primary_ggml_model(file_name)
 }
 
 fn describe_model(size_bytes: Option<u64>) -> String {

@@ -107,7 +107,8 @@ Legend:
 - [ ] Global toggle recording hotkey
 - [ ] Optional always-on-top mini overlay window
 - [ ] Start at login
-- [ ] Tray menu controls for quick record/stop
+- [x] Tray menu controls (v1: Show/Hide + Quit)
+- [ ] Tray quick record/stop controls
 - [ ] Paste-to-active-app action after transcription
 - [ ] Clipboard history integration (optional)
 

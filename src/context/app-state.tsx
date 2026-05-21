@@ -108,7 +108,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.downloadModel(modelId);
       setStatus(`download started: ${modelId}`);
-      toastSuccess("Model download started", modelId);
     } catch (error) {
       setStatus(getErrorMessage(error, `Failed to start download for ${modelId}`));
       toastError(error, `Failed to start download for ${modelId}`);

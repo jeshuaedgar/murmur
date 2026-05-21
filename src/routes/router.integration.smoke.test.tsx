@@ -8,6 +8,7 @@ const mockState: AppStateValue = {
   models: [
     {
       id: "small",
+      lab: "OpenAI Whisper",
       name: "Small",
       description: "Small model",
       url: "https://example.com/small.bin",
