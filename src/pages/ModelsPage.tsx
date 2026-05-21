@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,10 +12,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Boxes, Brain, Download, FlaskConical, InfoIcon, RefreshCcw, Trash2, WandSparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppState } from "@/context/app-state";
 import { useModelConnectivity } from "@/features/models/hooks/use-model-connectivity";
@@ -23,8 +22,6 @@ import { useModelActions } from "@/features/models/lib/model-actions";
 import { groupModelsByLab } from "@/features/models/lib/lab-order";
 import { getModelCardState, getModelProgressByModelId } from "@/features/models/lib/model-view-state";
 import { ModelSectionCard } from "@/features/models/components/model-section-card";
-import { api } from "@/lib/api/tauri";
-import { toastSuccess } from "@/lib/toast";
 
 function formatBytes(bytes?: number) {
   if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
@@ -46,11 +43,7 @@ export function ModelsPage() {
   const progressByModelId = useMemo(() => getModelProgressByModelId(downloadProgress), [downloadProgress]);
   const modelsByLab = useMemo(() => groupModelsByLab(models), [models]);
   const {
-    connectivityStatus,
-    connectivityDetail,
     checkConnectivity,
-    cacheDiagnostics,
-    refreshCacheDiagnostics,
   } = useModelConnectivity();
   const {
     pendingRemoveModelId,
@@ -70,81 +63,44 @@ export function ModelsPage() {
     checkConnectivity,
   });
 
-  const totalModels = models.length;
-  const installedModels = models.filter((model) => installedById.get(model.id)?.installed).length;
-  const activeDownloads = Array.from(downloadProgress.values()).filter((entry) => (entry.progressPct ?? 0) < 100).length;
   const cleanupModels = models.filter((model) => model.lab === "Cleanup Models");
   const installedCleanupModels = cleanupModels.filter((model) => installedById.get(model.id)?.installed).length;
+  const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
+  const [isConfirmingRedownload, setIsConfirmingRedownload] = useState(false);
 
-  useEffect(() => {
-    void refreshCacheDiagnostics();
-  }, [refreshCacheDiagnostics]);
+  async function onConfirmRemove() {
+    if (isConfirmingRemove || !pendingModel) return;
+    setIsConfirmingRemove(true);
+    try {
+      await confirmRemove();
+    } finally {
+      setIsConfirmingRemove(false);
+    }
+  }
+
+  async function onConfirmRedownload() {
+    if (isConfirmingRedownload || !pendingRedownloadModel) return;
+    setIsConfirmingRedownload(true);
+    try {
+      await confirmRedownload();
+    } finally {
+      setIsConfirmingRedownload(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
-      <header className="space-y-5 rounded-xl border bg-card px-5 py-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="inline-flex items-center gap-2 text-2xl font-semibold tracking-tight md:text-3xl">
-              <Boxes className="size-5" />
-              Model Library
-            </h1>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Browse model families, install once, and keep transcription fully offline.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{installedModels}/{totalModels} installed</Badge>
-            {activeDownloads > 0 && <Badge variant="secondary">{activeDownloads} downloading</Badge>}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {connectivityStatus === "offline" && <Badge variant="destructive">No internet</Badge>}
-            {connectivityStatus === "online" && <Badge variant="secondary">Online</Badge>}
-            {connectivityStatus === "unknown" && <Badge variant="outline">Connectivity unknown</Badge>}
-            {connectivityStatus === "checking" && (
-              <Badge variant="outline" className="inline-flex items-center gap-1">
-                <Spinner className="size-3" />
-                Checking connectivity
-              </Badge>
-            )}
-            {connectivityDetail ? <p className="text-sm text-muted-foreground">{connectivityDetail}</p> : null}
-          </div>
-          {cacheDiagnostics ? (
-            <p className="text-xs text-muted-foreground">
-              Cache: {cacheDiagnostics.status} | key {cacheDiagnostics.key} | ttl {Math.round(cacheDiagnostics.ttlMs / 60000)}m
-              {typeof cacheDiagnostics.ageMs === "number" ? ` | age ${Math.round(cacheDiagnostics.ageMs / 1000)}s` : ""}
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void api.invalidateModelCatalogCache().then(() => {
-                  toastSuccess("Model catalog cache cleared");
-                  void refreshCacheDiagnostics();
-                });
-              }}
-            >
-              Clear cache
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void api.listModels().then(() => {
-                  toastSuccess("Catalog refresh requested");
-                  void refreshCacheDiagnostics();
-                });
-              }}
-            >
-              Refresh catalog now
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Card>
+        <CardHeader>
+          <CardTitle className="inline-flex items-center gap-2 text-2xl md:text-3xl">
+            <Boxes className="size-5" />
+            Model Library
+          </CardTitle>
+          <CardDescription>
+            Browse model families, install once, and keep transcription fully offline.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       {modelsByLab.map(([lab, labModels]) => {
         if (lab === "Cleanup Models") {
@@ -195,12 +151,13 @@ export function ModelsPage() {
                 return (
                   <Card key={model.id} className="h-full">
                     <CardHeader className="gap-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <CardTitle className="text-base">{model.name}</CardTitle>
+                      <CardTitle className="text-base">{model.name}</CardTitle>
+                      <CardDescription className="leading-relaxed">{model.description}</CardDescription>
+                      <CardAction>
                         <Badge variant="outline" className="font-mono">
                           {model.id} ({formatBytes(model.sizeBytes)})
                         </Badge>
-                      </div>
+                      </CardAction>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge variant={statusBadgeVariant}>{statusLabel}</Badge>
                       </div>
@@ -209,7 +166,6 @@ export function ModelsPage() {
                         {model.fastest && <Badge variant="outline">Optimized for speed</Badge>}
                         {model.bestQuality && <Badge variant="secondary">High accuracy</Badge>}
                       </div>
-                      <CardDescription className="leading-relaxed">{model.description}</CardDescription>
                     </CardHeader>
 
                     <CardContent className="flex-1 space-y-2">
@@ -294,16 +250,16 @@ export function ModelsPage() {
               return (
                 <Card key={model.id} className="h-full">
                   <CardHeader className="gap-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <CardTitle className="text-base">{model.name}</CardTitle>
+                    <CardTitle className="text-base">{model.name}</CardTitle>
+                    <CardDescription className="leading-relaxed">{model.description}</CardDescription>
+                    <CardAction>
                       <Badge variant="outline" className="font-mono">
                         {model.id} ({formatBytes(model.sizeBytes)})
                       </Badge>
-                    </div>
+                    </CardAction>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant={statusBadgeVariant}>{statusLabel}</Badge>
                     </div>
-                    <CardDescription className="leading-relaxed">{model.description}</CardDescription>
                   </CardHeader>
 
                   <CardContent className="flex-1 space-y-2">
@@ -358,8 +314,9 @@ export function ModelsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void confirmRemove()} disabled={!pendingModel}>
-              Remove model
+            <AlertDialogAction variant="destructive" onClick={() => void onConfirmRemove()} disabled={!pendingModel || isConfirmingRemove}>
+              {isConfirmingRemove ? <Spinner /> : null}
+              {isConfirmingRemove ? "Removing..." : "Remove model"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -378,8 +335,13 @@ export function ModelsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="secondary" onClick={() => void confirmRedownload()} disabled={!pendingRedownloadModel}>
-              Re-download model
+            <AlertDialogAction
+              variant="secondary"
+              onClick={() => void onConfirmRedownload()}
+              disabled={!pendingRedownloadModel || isConfirmingRedownload}
+            >
+              {isConfirmingRedownload ? <Spinner /> : null}
+              {isConfirmingRedownload ? "Starting..." : "Re-download model"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

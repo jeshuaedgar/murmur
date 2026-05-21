@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
-import { Archive, Clock3, Download, FileJson2, FileSpreadsheet, Pin, Search, Trash2, Upload } from "lucide-react";
+import { Archive, Clock3, Download, FileJson2, FileSpreadsheet, History, Pin, Search, Trash2, Upload } from "lucide-react";
 import { api } from "@/lib/api/tauri";
 import type { TranscriptionHistoryStats, TranscriptionRecord } from "@/lib/types/history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toastError, toastSuccess, toastWarning } from "@/lib/toast";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
@@ -32,6 +34,11 @@ export function HistoryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [stats, setStats] = useState<TranscriptionHistoryStats | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    "import" | "export-json" | "export-csv" | "export-zip" | "delete" | "restore" | "pin" | "save-edit" | "copy" | null
+  >(null);
 
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) ?? items[0] ?? null,
@@ -43,6 +50,8 @@ export function HistoryPage() {
   }, [selected?.id]);
 
   async function load(reset = true) {
+    setIsLoading(true);
+    setLoadError(null);
     try {
       const nextOffset = reset ? 0 : offset;
       const next = await api.listTranscriptions({
@@ -61,7 +70,10 @@ export function HistoryPage() {
       const nextStats = await api.getTranscriptionHistoryStats();
       setStats(nextStats);
     } catch (error) {
+      setLoadError("We couldn't load history right now.");
       toastError(error, "Failed to load history");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -70,79 +82,118 @@ export function HistoryPage() {
   }, [includeDeleted]);
 
   async function onTogglePin(item: TranscriptionRecord) {
-    await api.updateTranscription(item.id, { pinned: !item.pinned });
-    await load(true);
+    if (pendingAction) return;
+    setPendingAction("pin");
+    try {
+      await api.updateTranscription(item.id, { pinned: !item.pinned });
+      toastSuccess(item.pinned ? "Removed pin" : "Pinned entry");
+      await load(true);
+    } catch (error) {
+      toastError(error, "Failed to update pin");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function onDelete(item: TranscriptionRecord) {
-    await api.deleteTranscription(item.id, false);
-    toastSuccess("Moved to deleted");
-    await load(true);
+    if (pendingAction) return;
+    setPendingAction("delete");
+    try {
+      await api.deleteTranscription(item.id, false);
+      toastSuccess("Entry moved to deleted");
+      await load(true);
+    } catch (error) {
+      toastError(error, "Failed to move entry to deleted");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function onRestore(item: TranscriptionRecord) {
-    await api.restoreTranscription(item.id);
-    toastSuccess("Restored from deleted");
-    await load(true);
+    if (pendingAction) return;
+    setPendingAction("restore");
+    try {
+      await api.restoreTranscription(item.id);
+      toastSuccess("Entry restored");
+      await load(true);
+    } catch (error) {
+      toastError(error, "Failed to restore entry");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function onCopyCleaned(item: TranscriptionRecord) {
-    await navigator.clipboard.writeText(item.cleanedText);
-    toastSuccess("Copied cleaned text");
+    if (pendingAction) return;
+    setPendingAction("copy");
+    try {
+      await navigator.clipboard.writeText(item.cleanedText);
+      toastSuccess("Cleaned text copied");
+    } catch (error) {
+      toastError(error, "Failed to copy cleaned text");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function onSaveEdit(item: TranscriptionRecord) {
-    await api.updateTranscription(item.id, { cleanedText: editingText });
-    toastSuccess("Saved cleaned text edit");
-    await load(true);
+    if (pendingAction || editingText === item.cleanedText) return;
+    setPendingAction("save-edit");
+    try {
+      await api.updateTranscription(item.id, { cleanedText: editingText });
+      toastSuccess("Edits saved");
+      await load(true);
+    } catch (error) {
+      toastError(error, "Failed to save edits");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function onExportJson() {
+    if (pendingAction || !isTauriRuntime) return;
+    setPendingAction("export-json");
     try {
       const payload = await api.exportTranscriptions(true);
-      if (isTauriRuntime) {
-        const target = await save({
-          title: "Export transcription history",
-          defaultPath: "murmur-transcriptions.json",
-          filters: [{ name: "JSON", extensions: ["json"] }],
-        });
-        if (!target) return;
-        await writeTextFile(target, payload);
-      } else {
-        await navigator.clipboard.writeText(payload);
-      }
-      toastSuccess("JSON history exported");
+      const target = await save({
+        title: "Export transcription history",
+        defaultPath: "murmur-transcriptions.json",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (!target) return;
+      await writeTextFile(target, payload);
+      toastSuccess("JSON export complete");
     } catch (error) {
-      toastError(error, "Failed to export history");
+      toastError(error, "JSON export failed");
+    } finally {
+      setPendingAction(null);
     }
   }
 
   async function onExportCsv() {
+    if (pendingAction || !isTauriRuntime) return;
+    setPendingAction("export-csv");
     try {
       const payload = await api.exportTranscriptionsCsv(true);
-      if (isTauriRuntime) {
-        const target = await save({
-          title: "Export transcription history CSV",
-          defaultPath: "murmur-transcriptions.csv",
-          filters: [{ name: "CSV", extensions: ["csv"] }],
-        });
-        if (!target) return;
-        await writeTextFile(target, payload);
-      } else {
-        await navigator.clipboard.writeText(payload);
-      }
-      toastSuccess("CSV history exported");
+      const target = await save({
+        title: "Export transcription history CSV",
+        defaultPath: "murmur-transcriptions.csv",
+        filters: [{ name: "CSV", extensions: ["csv"] }],
+      });
+      if (!target) return;
+      await writeTextFile(target, payload);
+      toastSuccess("CSV export complete");
     } catch (error) {
-      toastError(error, "Failed to export CSV history");
+      toastError(error, "CSV export failed");
+    } finally {
+      setPendingAction(null);
     }
   }
 
   async function onImport() {
+    if (pendingAction || !isTauriRuntime) return;
+    setPendingAction("import");
     try {
-      if (!isTauriRuntime) {
-        toastError("Import requires Tauri runtime", "Not available in web preview");
-        return;
-      }
       const file = await open({
         title: "Import transcription history",
         multiple: false,
@@ -151,22 +202,25 @@ export function HistoryPage() {
       if (!file || Array.isArray(file)) return;
       const payload = await readTextFile(file);
       const report = await api.importTranscriptions(payload);
-      toastSuccess(
-        `Imported ${report.imported}, failed ${report.failed}, skipped ${report.skipped}`,
-        report.errors[0],
-      );
+      const title = report.failed > 0 ? "Import completed with issues" : "Import completed";
+      const detail = `${report.imported} imported, ${report.skipped} skipped, ${report.failed} failed.`;
+      if (report.failed > 0) {
+        toastWarning(title, report.errors[0] ?? detail);
+      } else {
+        toastSuccess(title, detail);
+      }
       await load(true);
     } catch (error) {
-      toastError(error, "Failed to import history");
+      toastError(error, "Import failed");
+    } finally {
+      setPendingAction(null);
     }
   }
 
   async function onExportZipBundle() {
+    if (pendingAction || !isTauriRuntime) return;
+    setPendingAction("export-zip");
     try {
-      if (!isTauriRuntime) {
-        toastError("ZIP export requires Tauri runtime", "Not available in web preview");
-        return;
-      }
       const bundle = await api.exportTranscriptionsBundleZip(true);
       const target = await save({
         title: "Export history + audio bundle",
@@ -177,26 +231,47 @@ export function HistoryPage() {
       await writeFile(target, new Uint8Array(bundle.bytes));
       if (bundle.audioMissing > 0) {
         toastWarning(
-          "ZIP bundle exported with missing audio",
-          `Included ${bundle.audioIncluded}/${bundle.audioReferenced} referenced audio files. Missing ${bundle.audioMissing}.`,
+          "ZIP export completed with missing audio",
+          `${bundle.audioMissing} audio files are missing. Included ${bundle.audioIncluded} of ${bundle.audioReferenced} referenced files.`,
         );
       } else {
         toastSuccess(
-          "ZIP history bundle exported",
+          "ZIP export complete",
           `Included ${bundle.audioIncluded} audio files across ${bundle.totalEntries} entries.`,
         );
       }
     } catch (error) {
-      toastError(error, "Failed to export ZIP history bundle");
+      toastError(error, "ZIP export failed");
+    } finally {
+      setPendingAction(null);
     }
   }
 
+  const hasUnsavedEdit = Boolean(selected) && editingText !== (selected?.cleanedText ?? "");
+  const isBusy = pendingAction !== null;
+  const isFsActionUnavailable = !isTauriRuntime;
+  const isSearchNoMatch = Boolean(query.trim()) && items.length === 0 && !isLoading && !loadError;
+
   return (
-    <section className="grid h-full grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="inline-flex items-center gap-2 text-2xl md:text-3xl">
+            <History className="size-5" />
+            Transcription History
+          </CardTitle>
+          <CardDescription>Review, search, and manage stored transcript sessions.</CardDescription>
+        </CardHeader>
+      </Card>
+
+      <section className="grid h-full grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle>History Library</CardTitle>
-          <CardDescription>Search, filter, and export transcript sessions.</CardDescription>
+          <CardDescription>Search, filter, import, and export transcript sessions.</CardDescription>
+          <CardAction>
+            <Badge variant="outline">Avg ms: {Math.round(stats?.avgDurationMs ?? 0)}</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent className="flex h-[calc(100vh-15rem)] flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
@@ -215,37 +290,79 @@ export function HistoryPage() {
                 if (event.key === "Enter") void load(true);
               }}
             />
-            <Button onClick={() => void load(true)}>
-              <Search data-icon="inline-start" />
-              Search
+            <Button onClick={() => void load(true)} disabled={isLoading || isBusy}>
+              {isLoading ? <Spinner /> : <Search data-icon="inline-start" />}
+              {isLoading ? "Searching..." : "Search"}
             </Button>
           </div>
 
           <Button
             variant={includeDeleted ? "secondary" : "outline"}
             onClick={() => setIncludeDeleted((current) => !current)}
+            disabled={isBusy}
           >
             {includeDeleted ? "Showing deleted entries" : "Show deleted entries"}
           </Button>
 
-          <div className="grid grid-cols-4 gap-2">
-            <Button variant="outline" onClick={() => void onExportJson()} disabled={items.length === 0}>
-              <FileJson2 data-icon="inline-start" />
-              JSON
-            </Button>
-            <Button variant="outline" onClick={() => void onExportCsv()} disabled={items.length === 0}>
-              <FileSpreadsheet data-icon="inline-start" />
-              CSV
-            </Button>
-            <Button variant="outline" onClick={() => void onExportZipBundle()} disabled={items.length === 0}>
-              <Archive data-icon="inline-start" />
-              ZIP
-            </Button>
-            <Button variant="outline" onClick={() => void onImport()}>
-              <Upload data-icon="inline-start" />
+          {!isTauriRuntime ? (
+            <p className="text-xs text-muted-foreground">
+              Import/export is available in the desktop app. In web preview, file system actions are disabled.
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2">
+            <div className="overflow-x-auto pb-1">
+              <ButtonGroup className="min-w-max">
+              <Button
+                variant="outline"
+                onClick={() => void onExportJson()}
+                disabled={items.length === 0 || isBusy || isFsActionUnavailable}
+                title={isFsActionUnavailable ? "Available in desktop app only." : "Export all visible history data as JSON."}
+                aria-label="Export history as JSON"
+              >
+                {pendingAction === "export-json" ? <Spinner /> : <FileJson2 data-icon="inline-start" />}
+                JSON
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => void onExportCsv()}
+                disabled={items.length === 0 || isBusy || isFsActionUnavailable}
+                title={isFsActionUnavailable ? "Available in desktop app only." : "Export tabular history for spreadsheets."}
+                aria-label="Export history as CSV"
+              >
+                {pendingAction === "export-csv" ? <Spinner /> : <FileSpreadsheet data-icon="inline-start" />}
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => void onExportZipBundle()}
+                disabled={items.length === 0 || isBusy || isFsActionUnavailable}
+                title={
+                  isFsActionUnavailable
+                    ? "Available in desktop app only."
+                    : "Export history + CSV + only audio files that still exist."
+                }
+                aria-label="Export history bundle as ZIP"
+              >
+                {pendingAction === "export-zip" ? <Spinner /> : <Archive data-icon="inline-start" />}
+                ZIP
+              </Button>
+              </ButtonGroup>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => void onImport()}
+              disabled={isBusy || isFsActionUnavailable}
+              title={isFsActionUnavailable ? "Available in desktop app only." : "Import transcription history from a JSON export."}
+              aria-label="Import history from JSON"
+            >
+              {pendingAction === "import" ? <Spinner /> : <Upload data-icon="inline-start" />}
               Import
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            ZIP includes `history.csv`, `audio-manifest.csv`, and only referenced audio files that still exist on disk.
+          </p>
 
           <Separator />
 
@@ -274,7 +391,22 @@ export function HistoryPage() {
                   </p>
                 </button>
               ))}
-              {!items.length ? (
+              {loadError ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Archive />
+                    </EmptyMedia>
+                    <EmptyTitle>Couldn't load history</EmptyTitle>
+                    <EmptyDescription>{loadError}</EmptyDescription>
+                    <Button variant="outline" onClick={() => void load(true)} disabled={isLoading}>
+                      {isLoading ? <Spinner /> : null}
+                      Retry
+                    </Button>
+                  </EmptyHeader>
+                </Empty>
+              ) : null}
+              {!items.length && !loadError && !isSearchNoMatch ? (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -282,24 +414,50 @@ export function HistoryPage() {
                     </EmptyMedia>
                     <EmptyTitle>No history entries yet</EmptyTitle>
                     <EmptyDescription>Completed transcriptions will appear here for review and export.</EmptyDescription>
+                    <Button
+                      variant="outline"
+                      onClick={() => void onImport()}
+                      disabled={isBusy || isFsActionUnavailable}
+                      title={isFsActionUnavailable ? "Available in desktop app only." : "Import history from JSON."}
+                    >
+                      <Upload data-icon="inline-start" />
+                      Import JSON
+                    </Button>
                   </EmptyHeader>
                 </Empty>
               ) : null}
-              {hasMore ? (
-                <Button variant="outline" className="w-full" onClick={() => void load(false)}>
-                  <Download data-icon="inline-start" />
-                  Load more
-                </Button>
+              {isSearchNoMatch ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Search />
+                    </EmptyMedia>
+                    <EmptyTitle>No matches found</EmptyTitle>
+                    <EmptyDescription>Try another term or clear the search to view all history entries.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               ) : null}
             </div>
           </ScrollArea>
         </CardContent>
+        <CardFooter className="justify-between">
+          <p className="text-xs text-muted-foreground">Showing {items.length} entries{hasMore ? " (more available)" : ""}.</p>
+          {hasMore ? (
+            <Button variant="outline" onClick={() => void load(false)} disabled={isLoading || isBusy}>
+              {isLoading ? <Spinner /> : <Download data-icon="inline-start" />}
+              {isLoading ? "Loading..." : "Load more"}
+            </Button>
+          ) : null}
+        </CardFooter>
       </Card>
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle>Entry Inspector</CardTitle>
           <CardDescription>Review and adjust cleaned text before reuse.</CardDescription>
+          <CardAction>
+            {selected ? <Badge variant="outline">{selected.sourceType}</Badge> : <Badge variant="outline">No selection</Badge>}
+          </CardAction>
         </CardHeader>
         <CardContent className="h-[calc(100vh-15rem)]">
           {!selected ? (
@@ -323,20 +481,20 @@ export function HistoryPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => void onCopyCleaned(selected)}>
+                    <Button variant="outline" onClick={() => void onCopyCleaned(selected)} disabled={isBusy}>
                       Copy cleaned text
                     </Button>
-                    <Button variant="outline" onClick={() => void onTogglePin(selected)}>
+                    <Button variant="outline" onClick={() => void onTogglePin(selected)} disabled={isBusy}>
                       {selected.pinned ? "Unpin" : "Pin"}
                     </Button>
                     {selected.deletedAt ? (
-                      <Button variant="secondary" onClick={() => void onRestore(selected)}>
+                      <Button variant="secondary" onClick={() => void onRestore(selected)} disabled={isBusy}>
                         Restore
                       </Button>
                     ) : (
-                      <Button variant="destructive" onClick={() => void onDelete(selected)}>
-                        <Trash2 data-icon="inline-start" />
-                        Delete
+                      <Button variant="destructive" onClick={() => void onDelete(selected)} disabled={isBusy}>
+                        {pendingAction === "delete" ? <Spinner /> : <Trash2 data-icon="inline-start" />}
+                        {pendingAction === "delete" ? "Deleting..." : "Delete"}
                       </Button>
                     )}
                   </div>
@@ -347,7 +505,15 @@ export function HistoryPage() {
                 <div className="flex flex-col gap-2">
                   <p className="text-sm font-medium">Cleaned text (editable)</p>
                   <Textarea value={editingText} onChange={(event) => setEditingText(event.target.value)} className="min-h-48" />
-                  <Button className="w-fit" onClick={() => void onSaveEdit(selected)}>Save edits</Button>
+                  <Button
+                    className="w-fit"
+                    onClick={() => void onSaveEdit(selected)}
+                    disabled={!hasUnsavedEdit || isBusy}
+                    aria-label="Save cleaned text edits"
+                  >
+                    {pendingAction === "save-edit" ? <Spinner /> : null}
+                    {pendingAction === "save-edit" ? "Saving..." : "Save edits"}
+                  </Button>
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -358,7 +524,13 @@ export function HistoryPage() {
             </ScrollArea>
           )}
         </CardContent>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">
+            {selected ? `Selected entry created ${formatDate(selected.createdAt)}.` : "Pick a history entry to inspect and edit."}
+          </p>
+        </CardFooter>
       </Card>
-    </section>
+      </section>
+    </div>
   );
 }

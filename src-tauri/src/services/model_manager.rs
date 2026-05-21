@@ -7,7 +7,7 @@ use tauri_plugin_store::StoreExt;
 use tokio::sync::RwLock;
 
 const MODEL_CATALOG_CACHE_KEY: &str = "hf:model_catalog:v1";
-const MODEL_CATALOG_CACHE_SCHEMA_VERSION: u32 = 1;
+const MODEL_CATALOG_CACHE_SCHEMA_VERSION: u32 = 2;
 const MODEL_CATALOG_CACHE_TTL_MS: i64 = 6 * 60 * 60 * 1000;
 const MODEL_CATALOG_CACHE_STORE_PATH: &str = "cache.store";
 
@@ -287,7 +287,7 @@ const STATIC_MODEL_SOURCES: [StaticModelSource; 2] = [
         description: "Optional local cleanup model backend for transcript rewrite. Uses a different backend path than Whisper transcription.",
         url: "https://huggingface.co/google/flan-t5-small/resolve/main/model.safetensors",
         file_name: "cleanup-flan-t5-small-model.safetensors",
-        size_bytes: None,
+        size_bytes: Some(307_867_048),
     },
     StaticModelSource {
         id: "cleanup-models:flan-t5-base",
@@ -296,7 +296,7 @@ const STATIC_MODEL_SOURCES: [StaticModelSource; 2] = [
         description: "Stronger optional cleanup model for higher-end hardware. Uses a different backend path than Whisper transcription.",
         url: "https://huggingface.co/google/flan-t5-base/resolve/main/model.safetensors",
         file_name: "cleanup-flan-t5-base-model.safetensors",
-        size_bytes: None,
+        size_bytes: Some(990_345_061),
     },
 ];
 

@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mic2, Save, Settings2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +21,8 @@ import { useAppState } from "@/context/app-state";
 import { useModelConnectivity } from "@/features/models/hooks/use-model-connectivity";
 import { useSettingsPageLogic } from "@/features/settings/hooks/use-settings-page-logic";
 import { updateDefaultModelId } from "@/features/settings/lib/settings-updaters";
+import { api } from "@/lib/api/tauri";
+import { toastError, toastSuccess, toastWarning } from "@/lib/toast";
 
 export function SettingsPage() {
   const {
@@ -63,7 +65,47 @@ export function SettingsPage() {
     setSettings,
     saveSettings,
   });
-  const { connectivityStatus, connectivityDetail, isCheckingConnectivity, checkConnectivity } = useModelConnectivity();
+  const {
+    connectivityStatus,
+    connectivityDetail,
+    cacheDiagnostics,
+    refreshCacheDiagnostics,
+    isCheckingConnectivity,
+    checkConnectivity,
+  } = useModelConnectivity();
+  const [isClearingCache, setIsClearingCache] = useState(false);
+  const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
+  const isCacheActionBusy = isClearingCache || isRefreshingCatalog;
+  const automationEnabledCount = [
+    settings.translate,
+    settings.autoCopy,
+    settings.cleanupEnabled,
+    settings.liveCleanupEnabled,
+    settings.cleanupShowRawToggle,
+    settings.startAtLogin,
+  ].filter(Boolean).length;
+
+  const cacheStatusCopy = useMemo(() => {
+    if (!cacheDiagnostics) {
+      return "No cache diagnostics yet. Refresh the catalog to initialize cache details.";
+    }
+    const ageText =
+      typeof cacheDiagnostics.ageMs === "number"
+        ? `Last updated ${Math.round(cacheDiagnostics.ageMs / 1000)} seconds ago.`
+        : "No fetch timestamp available yet.";
+    const status = cacheDiagnostics.status.toLowerCase();
+    if (status.includes("fresh")) {
+      return `Catalog cache is fresh. ${ageText}`;
+    }
+    if (status.includes("stale")) {
+      return `Catalog cache is stale but still usable offline. ${ageText}`;
+    }
+    if (status.includes("offline")) {
+      return `Offline fallback is active. ${ageText}`;
+    }
+    return `Catalog cache status: ${cacheDiagnostics.status}. ${ageText}`;
+  }, [cacheDiagnostics]);
 
   useEffect(() => {
     if (!resolvedDefaultModelId || resolvedDefaultModelId === settings.defaultModelId) {
@@ -72,20 +114,95 @@ export function SettingsPage() {
     setSettings(updateDefaultModelId(resolvedDefaultModelId));
   }, [resolvedDefaultModelId, setSettings, settings.defaultModelId]);
 
+  useEffect(() => {
+    void refreshCacheDiagnostics();
+  }, [refreshCacheDiagnostics]);
+
+  async function onClearCache() {
+    if (isCacheActionBusy) return;
+    setIsClearingCache(true);
+    try {
+      await api.invalidateModelCatalogCache();
+      toastSuccess("Cache cleared", "Catalog cache has been reset.");
+      await refreshCacheDiagnostics();
+    } catch (error) {
+      toastError(error, "Could not clear cache");
+    } finally {
+      setIsClearingCache(false);
+    }
+  }
+
+  async function onRefreshCatalog() {
+    if (isCacheActionBusy) return;
+    setIsRefreshingCatalog(true);
+    try {
+      await api.invalidateModelCatalogCache();
+      await api.listModels();
+      toastSuccess("Catalog refreshed", "Fetched latest model catalog.");
+      await refreshCacheDiagnostics();
+    } catch (error) {
+      toastError(error, "Could not refresh catalog");
+    } finally {
+      setIsRefreshingCatalog(false);
+    }
+  }
+
+  async function onRunAllDiagnostics() {
+    if (isRunningDiagnostics || isCheckingConnectivity || isCacheActionBusy) return;
+    setIsRunningDiagnostics(true);
+    try {
+      const reachable = await checkConnectivity();
+      await refreshCacheDiagnostics();
+      if (reachable) {
+        toastSuccess("Diagnostics complete", "Connectivity and cache diagnostics were updated.");
+      } else {
+        toastWarning("Diagnostics complete", "Connectivity failed; cache diagnostics were still updated.");
+      }
+    } catch (error) {
+      toastError(error, "Diagnostics failed");
+    } finally {
+      setIsRunningDiagnostics(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
-      <header className="space-y-3 rounded-xl border bg-card px-5 py-4">
-        <h1 className="inline-flex items-center gap-2 text-2xl font-semibold tracking-tight">
-          <Settings2 />
-          Preferences
-        </h1>
-        <p className="text-sm text-muted-foreground">Configure model, language, audio input, and automation behavior.</p>
-      </header>
+      <Card>
+        <CardHeader>
+          <CardTitle className="inline-flex items-center gap-2 text-2xl md:text-3xl">
+            <Settings2 className="size-5" />
+            Preferences
+          </CardTitle>
+          <CardDescription>Configure model, language, audio input, and automation behavior.</CardDescription>
+          <CardAction>
+            <div className="flex flex-wrap items-center gap-2">
+              {connectivityStatus === "offline" && <Badge variant="destructive">No internet</Badge>}
+              {connectivityStatus === "online" && <Badge variant="secondary">Online</Badge>}
+              {connectivityStatus === "unknown" && <Badge variant="outline">Connectivity unknown</Badge>}
+            </div>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Use these sections to configure defaults, automation behavior, and diagnostics. Changes are applied when you
+            save settings.
+          </p>
+        </CardContent>
+        <CardFooter className="justify-end">
+          <Button onClick={() => void onSaveSettings()}>
+            <Save />
+            Save settings
+          </Button>
+        </CardFooter>
+      </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>General</CardTitle>
           <CardDescription>Default model and language settings.</CardDescription>
+          <CardAction>
+            <Badge variant="outline">Model: {resolvedDefaultModelId ?? "Not set"}</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-2">
@@ -123,6 +240,12 @@ export function SettingsPage() {
             />
           </div>
         </CardContent>
+        <CardFooter className="justify-end">
+          <Button onClick={() => void onSaveSettings()}>
+            <Save />
+            Save settings
+          </Button>
+        </CardFooter>
       </Card>
 
       <Card>
@@ -132,6 +255,9 @@ export function SettingsPage() {
             Audio Input
           </CardTitle>
           <CardDescription>Select the preferred capture device.</CardDescription>
+          <CardAction>
+            <Badge variant="outline">{browserInputOptions.length} browser inputs</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-col gap-2">
@@ -156,12 +282,21 @@ export function SettingsPage() {
           </div>
           <p>{audioInputsSummary}</p>
         </CardContent>
+        <CardFooter className="justify-end">
+          <Button onClick={() => void onSaveSettings()}>
+            <Save />
+            Save settings
+          </Button>
+        </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Automation</CardTitle>
           <CardDescription>Toggle transcript post-processing options and startup behavior.</CardDescription>
+          <CardAction>
+            <Badge variant="outline">{automationEnabledCount} enabled</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-start justify-between gap-4 py-1">
@@ -302,29 +437,77 @@ export function SettingsPage() {
             />
           </div>
         </CardContent>
+        <CardFooter className="justify-end">
+          <Button onClick={() => void onSaveSettings()}>
+            <Save />
+            Save settings
+          </Button>
+        </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Connectivity diagnostics</CardTitle>
-          <CardDescription>Run a manual network check for model downloads.</CardDescription>
+          <CardTitle>Debugging</CardTitle>
+          <CardDescription>Connectivity and cache diagnostics for model downloads and catalog refresh.</CardDescription>
+          <CardAction>
+            <Badge variant="outline">Cache: {cacheDiagnostics?.status ?? "unknown"}</Badge>
+          </CardAction>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {connectivityStatus === "offline" && <Badge variant="destructive">Status: Offline</Badge>}
-            {connectivityStatus === "online" && <Badge variant="secondary">Status: Online</Badge>}
-            {connectivityStatus === "unknown" && <Badge variant="outline">Status: Unknown</Badge>}
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">Connectivity diagnostics</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {connectivityStatus === "offline" && <Badge variant="destructive">Status: Offline</Badge>}
+              {connectivityStatus === "online" && <Badge variant="secondary">Status: Online</Badge>}
+              {connectivityStatus === "unknown" && <Badge variant="outline">Status: Unknown</Badge>}
+            </div>
+            {connectivityDetail ? <p className="text-sm text-muted-foreground">{connectivityDetail}</p> : null}
           </div>
-          {connectivityDetail ? <p className="text-sm text-muted-foreground">{connectivityDetail}</p> : null}
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">Model catalog cache</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void onClearCache()}
+                  disabled={isCacheActionBusy || isCheckingConnectivity || isRunningDiagnostics}
+                  aria-label="Clear model catalog cache"
+                >
+                  {isClearingCache ? <Spinner /> : null}
+                  Clear cache
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => void onRefreshCatalog()}
+                  disabled={isCacheActionBusy || isCheckingConnectivity || isRunningDiagnostics}
+                  aria-label="Refresh model catalog now"
+                >
+                  {isRefreshingCatalog ? <Spinner /> : null}
+                  Refresh catalog now
+                </Button>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">{cacheStatusCopy}</p>
+            {cacheDiagnostics ? (
+              <p className="text-xs text-muted-foreground">
+                Cache key {cacheDiagnostics.key} | TTL {Math.round(cacheDiagnostics.ttlMs / 60000)} minutes
+              </p>
+            ) : null}
+          </div>
         </CardContent>
         <CardFooter className="justify-end">
           <Button
             variant="outline"
-            onClick={() => void checkConnectivity()}
-            disabled={isCheckingConnectivity}
+            onClick={() => void onRunAllDiagnostics()}
+            disabled={isRunningDiagnostics || isCheckingConnectivity || isCacheActionBusy}
           >
-            {isCheckingConnectivity ? <Spinner /> : null}
-            {isCheckingConnectivity ? "Checking..." : "Check connectivity"}
+            {(isRunningDiagnostics || isCheckingConnectivity) ? <Spinner /> : null}
+            {(isRunningDiagnostics || isCheckingConnectivity) ? "Running diagnostics..." : "Run all diagnostics"}
           </Button>
         </CardFooter>
       </Card>
@@ -333,6 +516,9 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle>Storage</CardTitle>
           <CardDescription>Review the active app data directory.</CardDescription>
+          <CardAction>
+            <Badge variant="outline">Local settings</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <p>

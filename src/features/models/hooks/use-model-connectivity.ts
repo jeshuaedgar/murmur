@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api/tauri";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
-import { getErrorMessage, toastError, toastInfo, toastWarning } from "@/lib/toast";
+import { getErrorMessage, toastError, toastWarning } from "@/lib/toast";
 import type { ModelCatalogCacheDiagnostics } from "@/lib/types/models";
 
 export type ModelConnectivityState = {
@@ -62,8 +62,7 @@ export function useModelConnectivity(): ModelConnectivityState {
       }
       if (!isTauriRuntime) {
         setConnectivityStatus("online");
-        setConnectivityDetail("Browser reports online.");
-        toastInfo("Connectivity check", "Browser reports online.");
+        setConnectivityDetail("Online in web preview.");
         return true;
       }
 
