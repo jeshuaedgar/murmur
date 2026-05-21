@@ -11,7 +11,7 @@ Local-first, cross-platform speech-to-text desktop app using Tauri 2 + Rust + Ty
 - Models stored in platform app data under `models/whisper`.
 - Offline reuse of installed models.
 - WAV file transcription locally.
-- Microphone recording path (browser capture -> local WAV -> local transcription).
+- Microphone recording path (browser capture -> live chunk transcription + final local WAV transcription).
 - Settings persistence (default model, language, translate, auto-copy).
 
 ## Repository layout
@@ -66,6 +66,7 @@ Models are stored in app data and managed automatically:
 - Download resume support is not implemented yet.
 - Global hotkey and start-on-login are not implemented yet.
 - `whisper-rs` integration should be validated on each target OS with native Rust toolchains.
+- Live mode currently re-transcribes buffered audio every 2 seconds (functional MVP, not token-level streaming).
 
 ## Troubleshooting
 
