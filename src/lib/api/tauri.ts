@@ -20,6 +20,16 @@ export const api = {
     invoke<TranscriptionResult>("transcribe_file", { path, options }),
   transcribeRecording: (path: string, options: TranscriptionOptions) =>
     invoke<TranscriptionResult>("transcribe_recording", { path, options }),
+  transcribePcm: (
+    samples: number[],
+    sampleRate: number,
+    options: TranscriptionOptions,
+  ) =>
+    invoke<TranscriptionResult>("transcribe_pcm", {
+      samples,
+      sampleRate,
+      options,
+    }),
   getAppDataDir: () => invoke<string>("get_app_data_dir"),
   getAudioInputs: () => invoke<string[]>("get_audio_inputs"),
 };

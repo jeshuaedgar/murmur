@@ -24,6 +24,7 @@ pub fn run() {
             commands::settings::get_app_data_dir,
             commands::transcription::transcribe_file,
             commands::transcription::transcribe_recording,
+            commands::transcription::transcribe_pcm,
             commands::audio::get_audio_inputs,
         ])
         .run(tauri::generate_context!())

@@ -48,3 +48,38 @@ pub async fn transcribe_recording(
 ) -> Result<TranscriptionResult, String> {
     transcribe_file(app, state, path, options).await
 }
+
+#[tauri::command]
+pub async fn transcribe_pcm(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    samples: Vec<f32>,
+    sample_rate: u32,
+    options: TranscriptionOptions,
+) -> Result<TranscriptionResult, String> {
+    let model_path = state
+        .model_manager
+        .model_path(&app, &options.model_id)
+        .map_err(String::from)?;
+
+    if !model_path.exists() {
+        return Err(String::from(AppError::NotFound(format!(
+            "model '{}' is not installed",
+            options.model_id
+        ))));
+    }
+
+    if samples.is_empty() {
+        return Err(String::from(AppError::InvalidInput(
+            "cannot transcribe empty PCM sample buffer".to_string(),
+        )));
+    }
+
+    let audio = audio_convert::normalize_mono_to_16khz(samples, sample_rate);
+    let result = state
+        .whisper_service
+        .transcribe_audio(&options.model_id, model_path, audio, &options)
+        .map_err(String::from)?;
+
+    Ok(result)
+}

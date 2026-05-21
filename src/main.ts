@@ -15,6 +15,9 @@ let status = "idle";
 let appDataDir = "";
 let activeTab: "home" | "models" | "settings" = "home";
 let isRecording = false;
+let liveMode = true;
+let liveTimer: number | null = null;
+let liveInFlight = false;
 const downloadProgress = new Map<string, DownloadProgressEvent>();
 
 let stream: MediaStream | null = null;
@@ -65,11 +68,45 @@ async function startRecording() {
   source.connect(processor);
   processor.connect(audioCtx.destination);
   isRecording = true;
+  if (liveMode) {
+    liveTimer = window.setInterval(async () => {
+      if (!audioCtx || liveInFlight) return;
+      const total = chunks.reduce((n, c) => n + c.length, 0);
+      if (total < audioCtx.sampleRate) return;
+      const merged = new Float32Array(total);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+
+      try {
+        liveInFlight = true;
+        const result = await api.transcribePcm(Array.from(merged), audioCtx.sampleRate, {
+          modelId: settings.defaultModelId,
+          language: settings.language === "auto" ? null : settings.language,
+          translate: settings.translate,
+        });
+        if (result.text.trim().length > 0) {
+          transcript = result.text;
+          render();
+        }
+      } catch {
+        // Keep recording even if an intermediate chunk fails.
+      } finally {
+        liveInFlight = false;
+      }
+    }, 2000);
+  }
   setStatus("recording");
 }
 
 async function stopRecordingAndTranscribe() {
   if (!isRecording || !audioCtx) return;
+  if (liveTimer) {
+    window.clearInterval(liveTimer);
+    liveTimer = null;
+  }
   processor?.disconnect();
   stream?.getTracks().forEach((t) => t.stop());
   await audioCtx.close();
@@ -112,13 +149,17 @@ function render() {
 <button data-tab="settings" class="${activeTab === "settings" ? "active" : ""}">Settings</button>
 </nav></header>
 <main>
-${activeTab === "home" ? `<section><div class="badge">Model: ${settings.defaultModelId}</div><div class="status">Status: ${status}</div><div class="controls"><button id="record-btn">${isRecording ? "Stop & Transcribe" : "Start Recording"}</button><button id="pick-file">Import WAV</button><button id="copy-text">Copy</button><button id="clear-text">Clear</button></div><textarea rows="16">${transcript}</textarea></section>` : ""}
+${activeTab === "home" ? `<section><div class="badge">Model: ${settings.defaultModelId}</div><div class="status">Status: ${status}</div><div class="controls"><button id="record-btn">${isRecording ? "Stop & Transcribe" : "Start Recording"}</button><label><input id="live-mode" type="checkbox" ${liveMode ? "checked" : ""} ${isRecording ? "disabled" : ""}/> Live transcription</label><button id="pick-file">Import WAV</button><button id="copy-text">Copy</button><button id="clear-text">Clear</button></div><textarea rows="16">${transcript}</textarea></section>` : ""}
 ${activeTab === "models" ? `<section><p>Download once from Hugging Face, then run offline.</p><div class="model-grid">${models.map((m) => { const i = installedById.get(m.id); const d = Array.from(downloadProgress.values()).find((x) => x.modelId === m.id); return `<article class="card"><h3>${m.name} ${m.recommended ? '<span class="pill">Recommended</span>' : ""}</h3><p>${m.description}</p><p><code>${m.id}</code></p><p>${i?.installed ? "Installed" : "Not installed"}</p>${d ? `<progress max="100" value="${d.progressPct ?? 0}"></progress>` : ""}<div class="actions"><button data-download="${m.id}">${i?.installed ? "Re-download" : "Download"}</button><button data-delete="${m.id}" ${i?.installed ? "" : "disabled"}>Delete</button></div></article>`; }).join("")}</div></section>` : ""}
 ${activeTab === "settings" ? `<section><label>Default model <select id="default-model">${models.map((m) => `<option value="${m.id}" ${settings.defaultModelId === m.id ? "selected" : ""}>${m.name}</option>`).join("")}</select></label><label>Language <input id="language" value="${settings.language}" /></label><label><input id="translate" type="checkbox" ${settings.translate ? "checked" : ""}/> Translate to English</label><label><input id="autocopy" type="checkbox" ${settings.autoCopy ? "checked" : ""}/> Auto-copy transcript</label><p>App data: <code>${appDataDir}</code></p><button id="save-settings">Save settings</button></section>` : ""}
 </main>`;
 
   root.querySelectorAll("nav button").forEach((el) => el.addEventListener("click", () => { activeTab = (el as HTMLButtonElement).dataset.tab as typeof activeTab; render(); }));
   root.querySelector("#record-btn")?.addEventListener("click", async () => { try { if (isRecording) await stopRecordingAndTranscribe(); else await startRecording(); } catch (e) { setStatus(`error: ${String(e)}`); } });
+  root.querySelector("#live-mode")?.addEventListener("change", (e) => {
+    const input = e.target as HTMLInputElement;
+    liveMode = input.checked;
+  });
   root.querySelector("#pick-file")?.addEventListener("click", async () => { try { const file = await open({ multiple: false }); if (!file || Array.isArray(file)) return; setStatus("transcribing"); const result = await api.transcribeFile(file, { modelId: settings.defaultModelId, language: settings.language === "auto" ? null : settings.language, translate: settings.translate }); transcript = result.text; if (settings.autoCopy && transcript) await writeText(transcript); setStatus("done"); render(); } catch (e) { setStatus(`error: ${String(e)}`); } });
   root.querySelector("#copy-text")?.addEventListener("click", async () => writeText(transcript));
   root.querySelector("#clear-text")?.addEventListener("click", () => { transcript = ""; render(); });

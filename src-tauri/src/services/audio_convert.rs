@@ -30,11 +30,16 @@ pub fn load_audio_as_mono_f32_16khz(path: &str) -> Result<Vec<f32>, AppError> {
         samples = mono;
     }
 
-    if spec.sample_rate != 16_000 {
-        samples = resample_linear(&samples, spec.sample_rate, 16_000);
-    }
+    samples = normalize_mono_to_16khz(samples, spec.sample_rate);
 
     Ok(samples)
+}
+
+pub fn normalize_mono_to_16khz(samples: Vec<f32>, sample_rate: u32) -> Vec<f32> {
+    if sample_rate == 16_000 {
+        return samples;
+    }
+    resample_linear(&samples, sample_rate, 16_000)
 }
 
 fn resample_linear(input: &[f32], from_hz: u32, to_hz: u32) -> Vec<f32> {
