@@ -19,8 +19,8 @@
   </defs>
   <rect width="192" height="192" rx="43.5" fill="url(#murmur-logo-tile)"/>
   <g filter="url(#murmur-logo-shadow)">
-    <path d="M-18 108.75H29.25C40.425 108.75 46.5 102.675 46.5 91.5V72.375C46.5 48.375 61.05 36 78.9 36C94.8 36 106.95 46.2 111.9 64.35C116.55 46.2 128.4 36 144.525 36C158.25 36 137.25 47.85 137.25 72.375V91.5C137.25 102.675 131.25 108.75 125.25 108.75H154.5" stroke="url(#murmur-logo-amber)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M112.125 66V107.625" stroke="url(#murmur-logo-amber)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M-33.75 108.75H13.5C24.675 108.75 30.75 102.675 30.75 91.5V72.375C30.75 48.375 45.3 36 63.15 36C79.05 36 91.2 46.2 96.15 64.35C101.1 46.2 113.25 36 129.15 36C147 36 161.55 48.375 161.55 72.375V91.5C161.55 102.675 167.625 108.75 178.8 108.75H226.05" stroke="url(#murmur-logo-amber)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M96.375 66V107.625" stroke="url(#murmur-logo-amber)" stroke-width="12" stroke-linecap="round"/>
     <path d="M160.5 60H179.25M169.875 60V132M160.5 132H179.25" stroke="#F7F6F1" stroke-width="5.25" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M169.875 71.25V120.75" stroke="#C8CCD0" stroke-width="1.875" stroke-linecap="round" opacity=".65"/>
   </g>

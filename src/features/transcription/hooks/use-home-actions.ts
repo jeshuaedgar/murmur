@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { getErrorMessage, toastError } from "@/lib/toast";
+import { getErrorMessage, toastError, toastInfo, toastWarning } from "@/lib/toast";
 
 type UseHomeActionsArgs = {
   isRecording: boolean;
@@ -47,6 +47,7 @@ export function useHomeActions({
 
   const onCancelTranscription = useCallback(async () => {
     if (!activeTranscriptionTaskId) {
+      toastWarning("No active transcription", "Start a transcription before trying to cancel.");
       return;
     }
     await withActionErrorHandling(
@@ -57,6 +58,7 @@ export function useHomeActions({
 
   const onClearTranscript = useCallback(() => {
     setTranscript("");
+    toastInfo("Transcript cleared");
   }, [setTranscript]);
 
   return {

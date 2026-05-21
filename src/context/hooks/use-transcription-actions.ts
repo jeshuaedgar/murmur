@@ -5,6 +5,7 @@ import { BaseDirectory, mkdir, writeFile } from "@tauri-apps/plugin-fs";
 import { api } from "@/lib/api/tauri";
 import type { AppSettings } from "@/lib/types/settings";
 import { requireTauri } from "@/lib/runtime/tauri";
+import { toastInfo } from "@/lib/toast";
 
 type UseTranscriptionActionsParams = {
   settings: AppSettings;
@@ -224,7 +225,10 @@ export function useTranscriptionActions({
   async function startFileTranscription() {
     requireTauri("File transcription");
     const file = await open({ multiple: false });
-    if (!file || Array.isArray(file)) return;
+    if (!file || Array.isArray(file)) {
+      toastInfo("Import canceled", "No WAV file was selected.");
+      return;
+    }
 
     const task = await api.startTranscriptionFile(file, {
       modelId: settings.defaultModelId,
@@ -234,6 +238,7 @@ export function useTranscriptionActions({
 
     setActiveTranscriptionTaskId(task.taskId);
     setStatus("transcription queued");
+    toastInfo("File transcription queued");
   }
 
   function teardownRecordingResources() {

@@ -7,6 +7,16 @@ type ParsedError = {
   description?: string;
 };
 
+type ToastLink = {
+  label: string;
+  to: "/models" | "/" | "/settings" | "/home";
+};
+
+type ToastOptions = {
+  description?: string;
+  link?: ToastLink;
+};
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -74,12 +84,7 @@ function buildUserMessage(error: unknown, fallbackTitle: string) {
       title: "Model not installed.",
       description: "Install a model from the Models page, then try again.",
       statusMessage: "Model not installed. Open Models to install one.",
-      action: {
-        label: "Open Models",
-        onClick: () => {
-          void router.navigate({ to: "/models" });
-        },
-      },
+      link: { label: "Open Models", to: "/models" as const },
     };
   }
 
@@ -88,12 +93,7 @@ function buildUserMessage(error: unknown, fallbackTitle: string) {
       title: "Model download is incomplete.",
       description: "Open Models and reinstall the selected model before starting transcription.",
       statusMessage: "Model download is incomplete. Reinstall it from Models.",
-      action: {
-        label: "Open Models",
-        onClick: () => {
-          void router.navigate({ to: "/models" });
-        },
-      },
+      link: { label: "Open Models", to: "/models" as const },
     };
   }
 
@@ -114,11 +114,21 @@ function buildUserMessage(error: unknown, fallbackTitle: string) {
   };
 }
 
+function toToastAction(link?: ToastLink) {
+  if (!link) return undefined;
+  return {
+    label: link.label,
+    onClick: () => {
+      void router.navigate({ to: link.to });
+    },
+  };
+}
+
 export function toastError(error: unknown, fallbackTitle = "Something went wrong") {
   const message = buildUserMessage(error, fallbackTitle);
   toast.error(message.title, {
     description: message.description,
-    action: message.action,
+    action: toToastAction(message.link),
   });
 }
 
@@ -126,6 +136,20 @@ export function getErrorMessage(error: unknown, fallbackTitle = "Something went 
   return buildUserMessage(error, fallbackTitle).statusMessage;
 }
 
-export function toastSuccess(message: string, description?: string) {
-  toast.success(message, { description });
+export function toastSuccess(message: string, descriptionOrOptions?: string | ToastOptions) {
+  const options: ToastOptions =
+    typeof descriptionOrOptions === "string" ? { description: descriptionOrOptions } : (descriptionOrOptions ?? {});
+  toast.success(message, { description: options.description, action: toToastAction(options.link) });
+}
+
+export function toastInfo(message: string, descriptionOrOptions?: string | ToastOptions) {
+  const options: ToastOptions =
+    typeof descriptionOrOptions === "string" ? { description: descriptionOrOptions } : (descriptionOrOptions ?? {});
+  toast.info(message, { description: options.description, action: toToastAction(options.link) });
+}
+
+export function toastWarning(message: string, descriptionOrOptions?: string | ToastOptions) {
+  const options: ToastOptions =
+    typeof descriptionOrOptions === "string" ? { description: descriptionOrOptions } : (descriptionOrOptions ?? {});
+  toast.warning(message, { description: options.description, action: toToastAction(options.link) });
 }

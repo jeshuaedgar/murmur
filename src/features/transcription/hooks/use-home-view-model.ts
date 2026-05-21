@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { toastError, toastSuccess, toastWarning } from "@/lib/toast";
 
 type UseHomeViewModelArgs = {
   isRecording: boolean;
@@ -24,7 +25,17 @@ export function useHomeViewModel({
   );
 
   const onCopyTranscript = useCallback(async () => {
-    await copyText(transcript);
+    const text = transcript.trim();
+    if (!text) {
+      toastWarning("Nothing to copy", "Transcript is empty.");
+      return;
+    }
+    try {
+      await copyText(text);
+      toastSuccess("Transcript copied");
+    } catch (error) {
+      toastError(error, "Failed to copy transcript");
+    }
   }, [copyText, transcript]);
 
   const onTranscriptChange = useCallback(

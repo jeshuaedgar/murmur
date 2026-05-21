@@ -19,8 +19,8 @@
   </defs>
   <rect width="256" height="256" rx="58" fill="url(#murmur-tile)"/>
   <g filter="url(#soft-shadow)">
-    <path d="M-24 145H39C53.9 145 62 136.9 62 122V96.5C62 64.5 81.4 48 105.2 48C126.4 48 142.6 61.6 149.2 85.8C155.4 61.6 171.2 48 192.7 48C211 48 183 63.8 183 96.5V122C183 136.9 175 145 167 145H206" stroke="url(#murmur-amber)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M149.5 88V143.5" stroke="url(#murmur-amber)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M-45 145H18C32.9 145 41 136.9 41 122V96.5C41 64.5 60.4 48 84.2 48C105.4 48 121.6 61.6 128.2 85.8C134.8 61.6 151 48 172.2 48C196 48 215.4 64.5 215.4 96.5V122C215.4 136.9 223.5 145 238.4 145H301.4" stroke="url(#murmur-amber)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M128.5 88V143.5" stroke="url(#murmur-amber)" stroke-width="16" stroke-linecap="round"/>
     <path d="M214 80H239M226.5 80V176M214 176H239" stroke="#F7F6F1" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M226.5 95V161" stroke="#C8CCD0" stroke-width="2.5" stroke-linecap="round" opacity=".65"/>
   </g>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api/tauri";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
-import { getErrorMessage } from "@/lib/toast";
+import { getErrorMessage, toastError, toastInfo, toastSuccess, toastWarning } from "@/lib/toast";
 
 export type ModelConnectivityState = {
   connectivityStatus: "unknown" | "online" | "offline";
@@ -43,11 +43,13 @@ export function useModelConnectivity(): ModelConnectivityState {
       if (!navigator.onLine) {
         setConnectivityStatus("offline");
         setConnectivityDetail("No internet connection detected.");
+        toastWarning("Offline", "No internet connection detected.");
         return false;
       }
       if (!isTauriRuntime) {
         setConnectivityStatus("online");
         setConnectivityDetail("Browser reports online.");
+        toastInfo("Connectivity check", "Browser reports online.");
         return true;
       }
 
@@ -59,10 +61,16 @@ export function useModelConnectivity(): ModelConnectivityState {
           ? "Connected to Hugging Face."
           : getErrorMessage(status.detail, "No internet or Hugging Face is unreachable."),
       );
+      if (reachable) {
+        toastSuccess("Connectivity check passed", "Connected to Hugging Face.");
+      } else {
+        toastWarning("Connectivity issue", getErrorMessage(status.detail, "Hugging Face is unreachable."));
+      }
       return reachable;
     } catch (error) {
       setConnectivityStatus("offline");
       setConnectivityDetail(getErrorMessage(error, "No internet or Hugging Face is unreachable."));
+      toastError(error, "Connectivity check failed");
       return false;
     } finally {
       setIsCheckingConnectivity(false);
