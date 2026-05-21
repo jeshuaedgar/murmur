@@ -83,10 +83,10 @@ async function stopRecordingAndTranscribe() {
   }
 
   const wav = encodeWav(merged, audioCtx.sampleRate);
-  await mkdir("recordings", { baseDir: BaseDirectory.AppLocalData, recursive: true });
+  await mkdir("recordings", { baseDir: BaseDirectory.AppData, recursive: true });
   const stamp = Date.now();
   const fileName = `recordings/recording-${stamp}.wav`;
-  await writeFile(fileName, wav, { baseDir: BaseDirectory.AppLocalData });
+  await writeFile(fileName, wav, { baseDir: BaseDirectory.AppData });
 
   isRecording = false;
   setStatus("transcribing");
