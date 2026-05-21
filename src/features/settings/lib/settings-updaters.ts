@@ -22,6 +22,7 @@ export const updateHistoryRetentionIncludePinned = updateSetting("historyRetenti
 export const updateOverlayShortcut = updateSetting("overlayShortcut");
 export const updateOverlayPinned = updateSetting("overlayPinned");
 export const updateOverlayHideStopsRecording = updateSetting("overlayHideStopsRecording");
+export const updateOverlayEnabled = updateSetting("overlayEnabled");
 export const updateHistoryRetentionDays: SettingsUpdater<number | null> = (value) => (prev) => ({
   ...prev,
   historyRetentionDays: value,

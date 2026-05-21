@@ -248,6 +248,12 @@ fn validate_settings_value(value: &serde_yaml::Value) -> ValidatedSettings {
             defaults.overlay_hide_stops_recording,
             &mut invalid_keys,
         ),
+        overlay_enabled: parse_bool(
+            get("overlayEnabled"),
+            "overlayEnabled",
+            defaults.overlay_enabled,
+            &mut invalid_keys,
+        ),
     };
 
     ValidatedSettings {
@@ -372,6 +378,7 @@ cleanupModelId: null
 overlayShortcut: CmdOrCtrl+Shift+Space
 overlayPinned: true
 overlayHideStopsRecording: true
+overlayEnabled: true
 "#,
         )
         .expect("valid yaml");

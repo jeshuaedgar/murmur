@@ -12,7 +12,7 @@ use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     image::Image,
     tray::{MouseButton, MouseButtonState, TrayIconEvent},
-    AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -40,16 +40,6 @@ where
 {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         f(&window);
-    }
-}
-
-fn toggle_overlay_window(window: &WebviewWindow) {
-    if window.is_visible().unwrap_or(false) {
-        let _ = window.hide();
-    } else {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
     }
 }
 
@@ -108,7 +98,20 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new().with_handler(|app, _shortcut, _event| {
-                with_overlay_window(app, toggle_overlay_window);
+                let app_handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let state = app_handle.state::<AppState>();
+                    let overlay_enabled = *state.overlay_enabled.lock().await;
+                    if !overlay_enabled {
+                        return;
+                    }
+                    with_overlay_window(&app_handle, |window| {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    });
+                    let _ = app_handle.emit_to(OVERLAY_WINDOW_LABEL, "overlay-hotkey-pressed", ());
+                });
             }).build(),
         )
         .plugin(tauri_plugin_autostart::init(
@@ -137,7 +140,7 @@ pub fn run() {
                     .always_on_top(startup_settings.overlay_pinned)
                     .resizable(false)
                     .skip_taskbar(true)
-                    .visible(false)
+                    .visible(startup_settings.overlay_enabled)
                     .build()?;
 
                 if let Err(error) = app
@@ -177,7 +180,15 @@ pub fn run() {
                                 with_main_window(app, toggle_main_window);
                             }
                             MENU_ID_TOGGLE_OVERLAY => {
-                                with_overlay_window(app, toggle_overlay_window);
+                                with_overlay_window(app, |window| {
+                                    if window.is_visible().unwrap_or(false) {
+                                        let _ = window.hide();
+                                    } else {
+                                        let _ = window.unminimize();
+                                        let _ = window.show();
+                                        let _ = window.set_focus();
+                                    }
+                                });
                             }
                             MENU_ID_QUIT_APP => {
                                 quit_requested.store(true, Ordering::SeqCst);
@@ -218,13 +229,19 @@ pub fn run() {
                     }
                 });
 
+                let overlay_owner = app.handle().clone();
                 with_overlay_window(app.handle(), move |window| {
                     let window = window.clone();
                     let window_for_close = window.clone();
+                    let app_handle = overlay_owner.clone();
                     window.on_window_event(move |event| {
                         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                             api.prevent_close();
-                            let _ = window_for_close.hide();
+                            let state = app_handle.state::<AppState>();
+                            let overlay_enabled = tauri::async_runtime::block_on(state.overlay_enabled.lock());
+                            if !*overlay_enabled {
+                                let _ = window_for_close.hide();
+                            }
                         }
                     });
                 });
@@ -237,6 +254,10 @@ pub fn run() {
                 {
                     let mut overlay_shortcut = tauri::async_runtime::block_on(state.overlay_shortcut.lock());
                     *overlay_shortcut = startup_settings.overlay_shortcut;
+                }
+                {
+                    let mut overlay_enabled = tauri::async_runtime::block_on(state.overlay_enabled.lock());
+                    *overlay_enabled = startup_settings.overlay_enabled;
                 }
                 if let Err(error) = state.transcription_store.initialize(app.handle()) {
                     eprintln!("transcription store initialization warning: {error}");
@@ -266,6 +287,7 @@ pub fn run() {
             commands::overlay::hide_overlay,
             commands::overlay::set_overlay_shortcut,
             commands::overlay::set_overlay_pinned,
+            commands::overlay::set_overlay_enabled,
             commands::transcription::transcribe_file,
             commands::transcription::transcribe_recording,
             commands::transcription::transcribe_pcm,

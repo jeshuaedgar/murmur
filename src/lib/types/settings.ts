@@ -19,4 +19,5 @@ export type AppSettings = {
   overlayShortcut: string;
   overlayPinned: boolean;
   overlayHideStopsRecording: boolean;
+  overlayEnabled: boolean;
 };

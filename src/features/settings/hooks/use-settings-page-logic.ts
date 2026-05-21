@@ -14,6 +14,7 @@ import {
   updateLiveCleanupEnabled,
   updateLiveCleanupMode,
   updateOverlayHideStopsRecording,
+  updateOverlayEnabled,
   updateOverlayPinned,
   updateOverlayShortcut,
   updateHistoryRetentionDays,
@@ -182,6 +183,10 @@ export function useSettingsPageLogic({
     (checked: boolean) => setSettings(updateOverlayHideStopsRecording(checked)),
     [setSettings],
   );
+  const onOverlayEnabledChange = useCallback(
+    (checked: boolean) => setSettings(updateOverlayEnabled(checked)),
+    [setSettings],
+  );
 
   return {
     modelOptionsByLab,
@@ -205,6 +210,7 @@ export function useSettingsPageLogic({
     onOverlayShortcutChange,
     onOverlayPinnedChange,
     onOverlayHideStopsRecordingChange,
+    onOverlayEnabledChange,
     onSaveSettings,
   };
 }

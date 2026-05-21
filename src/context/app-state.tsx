@@ -42,6 +42,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     overlayShortcut: "CmdOrCtrl+Shift+Space",
     overlayPinned: true,
     overlayHideStopsRecording: true,
+    overlayEnabled: true,
   });
   const [transcript, setTranscript] = useState("");
   const [rawTranscript, setRawTranscript] = useState("");
@@ -123,6 +124,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         api.setStartAtLogin(settings.startAtLogin),
         api.setOverlayShortcut(settings.overlayShortcut),
         api.setOverlayPinned(settings.overlayPinned),
+        api.setOverlayEnabled(settings.overlayEnabled),
       ]);
       setStatus("settings saved");
       toastSuccess("Settings saved");

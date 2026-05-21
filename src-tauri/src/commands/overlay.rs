@@ -1,5 +1,5 @@
 use crate::state::app_state::AppState;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 const OVERLAY_WINDOW_LABEL: &str = "overlay";
@@ -37,7 +37,13 @@ pub fn show_overlay(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn hide_overlay(app: AppHandle) -> Result<(), String> {
+pub async fn hide_overlay(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if *state.overlay_enabled.lock().await {
+        return Ok(());
+    }
     if let Some(window) = app.get_webview_window(OVERLAY_WINDOW_LABEL) {
         window.hide().map_err(|err| err.to_string())
     } else {
@@ -81,6 +87,30 @@ pub fn set_overlay_pinned(app: AppHandle, pinned: bool) -> Result<(), String> {
         window
             .set_always_on_top(pinned)
             .map_err(|err| err.to_string())
+    } else {
+        Err("overlay window is unavailable".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn set_overlay_enabled(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<(), String> {
+    {
+        let mut overlay_enabled = state.overlay_enabled.lock().await;
+        *overlay_enabled = enabled;
+    }
+    if let Some(window) = app.get_webview_window(OVERLAY_WINDOW_LABEL) {
+        if enabled {
+            window.unminimize().map_err(|err| err.to_string())?;
+            window.show().map_err(|err| err.to_string())?;
+        } else {
+            window.hide().map_err(|err| err.to_string())?;
+        }
+        let _ = app.emit("overlay-enabled-changed", enabled);
+        Ok(())
     } else {
         Err("overlay window is unavailable".to_string())
     }

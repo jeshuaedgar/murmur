@@ -84,6 +84,7 @@ export function SettingsPage() {
     onOverlayShortcutChange,
     onOverlayPinnedChange,
     onOverlayHideStopsRecordingChange,
+    onOverlayEnabledChange,
     onSaveSettings,
   } = useSettingsPageLogic({
     models,
@@ -577,6 +578,13 @@ export function SettingsPage() {
                 <p className="text-xs text-muted-foreground">Example: CmdOrCtrl+Shift+Space</p>
               </div>
               <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-4 py-1">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="overlay-enabled">Enable floating overlay</Label>
+                    <p className="text-sm text-muted-foreground">Keep the overlay available while Murmur runs.</p>
+                  </div>
+                  <Switch id="overlay-enabled" checked={settings.overlayEnabled} onCheckedChange={onOverlayEnabledChange} />
+                </div>
                 <div className="flex items-start justify-between gap-4 py-1">
                   <div className="flex flex-col gap-1">
                     <Label htmlFor="overlay-pinned">Pin overlay on top</Label>

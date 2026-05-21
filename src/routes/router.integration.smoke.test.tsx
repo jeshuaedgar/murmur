@@ -41,6 +41,7 @@ const mockState: AppStateValue = {
     overlayShortcut: "CmdOrCtrl+Shift+Space",
     overlayPinned: true,
     overlayHideStopsRecording: true,
+    overlayEnabled: true,
   },
   transcript: "",
   rawTranscript: "",

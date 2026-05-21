@@ -47,6 +47,8 @@ export const api = {
     invoke<void>("set_overlay_shortcut", { shortcut }),
   setOverlayPinned: (pinned: boolean) =>
     invoke<void>("set_overlay_pinned", { pinned }),
+  setOverlayEnabled: (enabled: boolean) =>
+    invoke<void>("set_overlay_enabled", { enabled }),
   transcribeFile: (path: string, options: TranscriptionOptions) =>
     invoke<TranscriptionResult>("transcribe_file", { path, options }),
   transcribeRecording: (path: string, options: TranscriptionOptions) =>

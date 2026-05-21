@@ -1,10 +1,13 @@
 import { Pin, PinOff, Mic, Square, X } from "lucide-react";
+import { useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppState } from "@/context/app-state";
 import { useHomeActions } from "@/features/transcription/hooks/use-home-actions";
 import { api } from "@/lib/api/tauri";
+import { isTauriRuntime } from "@/lib/runtime/tauri";
 import { toastError } from "@/lib/toast";
 
 export function OverlayPage() {
@@ -42,6 +45,9 @@ export function OverlayPage() {
 
   async function onHideOverlay() {
     try {
+      if (settings.overlayEnabled) {
+        return;
+      }
       if (settings.overlayHideStopsRecording && isRecording) {
         await stopRecordingAndTranscribe();
       }
@@ -50,6 +56,18 @@ export function OverlayPage() {
       toastError(error, "Failed to hide overlay");
     }
   }
+
+  useEffect(() => {
+    if (!isTauriRuntime) return;
+    const attachListener = async () =>
+      listen("overlay-hotkey-pressed", () => {
+        void onRecordToggle();
+      });
+    const unlistenPromise = attachListener();
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [onRecordToggle]);
 
   async function onPinToggle() {
     const nextPinned = !settings.overlayPinned;
@@ -88,6 +106,7 @@ export function OverlayPage() {
             size="icon"
             variant="ghost"
             aria-label="Hide overlay"
+            disabled={settings.overlayEnabled}
             onClick={() => void onHideOverlay()}
           >
             <X />

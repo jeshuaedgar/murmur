@@ -31,6 +31,7 @@ pub struct AppSettings {
     pub overlay_shortcut: String,
     pub overlay_pinned: bool,
     pub overlay_hide_stops_recording: bool,
+    pub overlay_enabled: bool,
 }
 
 impl Default for AppSettings {
@@ -56,6 +57,7 @@ impl Default for AppSettings {
             overlay_shortcut: "CmdOrCtrl+Shift+Space".to_string(),
             overlay_pinned: true,
             overlay_hide_stops_recording: true,
+            overlay_enabled: true,
         }
     }
 }
@@ -76,6 +78,7 @@ pub struct AppState {
     pub download_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
     pub transcription_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
     pub overlay_shortcut: Mutex<String>,
+    pub overlay_enabled: Mutex<bool>,
 }
 
 impl AppState {
@@ -88,6 +91,7 @@ impl AppState {
             download_flags: Mutex::new(HashMap::new()),
             transcription_flags: Mutex::new(HashMap::new()),
             overlay_shortcut: Mutex::new(AppSettings::default().overlay_shortcut),
+            overlay_enabled: Mutex::new(AppSettings::default().overlay_enabled),
         }
     }
 }
