@@ -133,6 +133,14 @@ function buildUserMessage(error: unknown, fallbackTitle: string) {
     };
   }
 
+  if (parsed.code === "io_error") {
+    return {
+      title: "Audio file could not be accessed.",
+      description: "Check that the file still exists and this app has permission to read it.",
+      statusMessage: "Audio file could not be accessed.",
+    };
+  }
+
   const title = toSentence(rawTitle || fallbackTitle);
   const description = rawDescription ? toSentence(rawDescription) : undefined;
   return {

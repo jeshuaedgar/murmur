@@ -34,8 +34,14 @@ pub fn load_audio_as_mono_f32_16khz(path: &str) -> Result<Vec<f32>, AppError> {
 }
 
 fn decode_wav(path: &str) -> Result<Vec<f32>, AppError> {
-    let mut reader = hound::WavReader::open(path)
-        .map_err(|e| AppError::InvalidInput(format!("failed to open wav: {e}")))?;
+    let mut reader = hound::WavReader::open(path).map_err(|e| {
+        let detail = e.to_string();
+        if detail.contains("No such file") || detail.contains("Permission denied") {
+            AppError::Io(format!("failed to open audio file: {detail}"))
+        } else {
+            AppError::AudioDecode(format!("Could not decode the selected audio file: {detail}"))
+        }
+    })?;
     let spec = reader.spec();
 
     let raw: Result<Vec<f32>, _> = match spec.sample_format {
@@ -46,7 +52,8 @@ fn decode_wav(path: &str) -> Result<Vec<f32>, AppError> {
         hound::SampleFormat::Float => reader.samples::<f32>().collect(),
     };
 
-    let mut samples = raw.map_err(|e| AppError::InvalidInput(format!("failed to read wav: {e}")))?;
+    let mut samples = raw
+        .map_err(|e| AppError::AudioDecode(format!("Could not decode the selected audio file: {e}")))?;
 
     if spec.channels > 1 {
         samples = downmix_interleaved_to_mono(samples, spec.channels as usize);

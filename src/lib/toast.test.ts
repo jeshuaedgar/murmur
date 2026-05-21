@@ -27,4 +27,10 @@ describe("toast error mapping", () => {
       "Audio codec unavailable in this build.",
     );
   });
+
+  it("maps io errors to a friendly status", () => {
+    expect(getErrorMessage(payload("io_error", "bad"))).toBe(
+      "Audio file could not be accessed.",
+    );
+  });
 });
