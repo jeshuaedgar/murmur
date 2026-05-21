@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { AppSettings } from "@/lib/types/settings";
 
@@ -14,7 +15,12 @@ export function useBrowserAudioInputs({
   settingsRef,
   setSettings,
 }: UseBrowserAudioInputsParams) {
-  async function refreshBrowserAudioInputs() {
+  const refreshBrowserAudioInputs = useCallback(async () => {
+    if (!("mediaDevices" in navigator) || typeof navigator.mediaDevices?.enumerateDevices !== "function") {
+      setBrowserAudioInputs([]);
+      return;
+    }
+
     const devices = await navigator.mediaDevices.enumerateDevices();
     const inputs = devices
       .filter((device) => device.kind === "audioinput")
@@ -24,7 +30,7 @@ export function useBrowserAudioInputs({
     if (!settingsRef.current.audioInputDeviceId && inputs.length > 0) {
       setSettings((prev) => ({ ...prev, audioInputDeviceId: inputs[0].id }));
     }
-  }
+  }, [setBrowserAudioInputs, setSettings, settingsRef]);
 
   return { refreshBrowserAudioInputs };
 }

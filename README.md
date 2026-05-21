@@ -1,4 +1,4 @@
-# Whisper Local STT (Tauri 2)
+# Murmur (Tauri 2)
 
 Local-first, cross-platform speech-to-text desktop app using Tauri 2 + Rust + TypeScript with `whisper.cpp` through `whisper-rs`.
 
