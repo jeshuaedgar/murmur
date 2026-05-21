@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Murmur dev mono app icon</title>
+  <desc id="desc">A dark rounded-square app icon with an amber waveform lowercase m and a white text cursor.</desc>
+  <rect width="1024" height="1024" rx="222" fill="#202528"/>
+  <rect x="42" y="42" width="940" height="940" rx="196" stroke="#F8F5ED" stroke-opacity=".08" stroke-width="4"/>
+  <path d="M112 616H242C293.915 616 336 573.915 336 522V395C336 300.007 409.007 230 504 230C598.993 230 672 300.007 672 395V616M672 616V395C672 300.007 745.007 230 840 230C935 230 1008 300.007 1008 395V522C1008 573.915 965.915 616 914 616H854" stroke="#F5B957" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M668 394V708" stroke="#F5B957" stroke-width="60" stroke-linecap="round" opacity=".98"/>
+  <path d="M724 306H838M781 306V718M724 718H838" stroke="#EFF3F1" stroke-width="38" stroke-linecap="round"/>
+  <path d="M781 386V638" stroke="#EFF3F1" stroke-width="14" stroke-linecap="round" opacity=".45"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg width="900" height="1060" viewBox="0 0 900 1060" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Murmur dev mono stacked logo</title>
+  <desc id="desc">A stacked Murmur logo with waveform m app icon and monospaced wordmark.</desc>
+  <rect width="900" height="1060" rx="64" fill="#F8F5ED"/>
+  <g transform="translate(238 126)">
+    <rect width="424" height="424" rx="92" fill="#202528"/>
+    <path d="M18 262H75C107 262 133 236 133 204V152C133 94 178 53 236 53C294 53 339 94 339 152V262M339 262V152C339 94 384 53 442 53C500 53 545 94 545 152V204C545 236 571 262 603 262H655" stroke="#F5B957" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M338 150V314" stroke="#F5B957" stroke-width="34" stroke-linecap="round" opacity=".98"/>
+    <path d="M348 126H402M375 126V300M348 300H402" stroke="#EFF3F1" stroke-width="17" stroke-linecap="round"/>
+    <path d="M375 160V266" stroke="#EFF3F1" stroke-width="7" stroke-linecap="round" opacity=".45"/>
+  </g>
+  <text x="450" y="736" text-anchor="middle" fill="#202528" font-family="'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', 'IBM Plex Mono', Menlo, Consolas, monospace" font-size="112" font-weight="500" letter-spacing="0">Murmur</text>
+  <path d="M232 790H668" stroke="#F5B957" stroke-width="10" stroke-linecap="round"/>
+  <text x="450" y="858" text-anchor="middle" fill="#596066" font-family="'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', 'IBM Plex Mono', Menlo, Consolas, monospace" font-size="34" font-weight="400" letter-spacing="0">local transcripts</text>
+</svg>

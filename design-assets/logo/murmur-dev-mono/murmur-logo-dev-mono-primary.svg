@@ -1,0 +1,18 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Murmur dev mono primary logo</title>
+  <desc id="desc">A waveform lowercase m with a text cursor, paired with an elegant monospaced Murmur wordmark.</desc>
+  <!-- Direction: keep the liked waveform-m concept, make the typography developer-adjacent, and preserve a quiet premium app feel. -->
+  <rect width="1200" height="420" rx="56" fill="#F8F5ED"/>
+  <g transform="translate(104 76)">
+    <rect width="268" height="268" rx="58" fill="#1F2528"/>
+    <path d="M0 168H48C68 168 84 152 84 132V98C84 63 111 38 145 38C179 38 206 63 206 98V168M206 168V98C206 63 233 38 267 38C301 38 328 63 328 98V132C328 152 344 168 364 168H406" stroke="#F5B957" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M205 94V191" stroke="#F5B957" stroke-width="20" stroke-linecap="round" opacity=".98"/>
+    <path d="M210 80H244M227 80V188M210 188H244" stroke="#EFF3F1" stroke-width="10" stroke-linecap="round"/>
+    <path d="M227 101V167" stroke="#EFF3F1" stroke-width="4" stroke-linecap="round" opacity=".45"/>
+  </g>
+  <g transform="translate(438 112)">
+    <text x="0" y="120" fill="#202528" font-family="'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', 'IBM Plex Mono', Menlo, Consolas, monospace" font-size="116" font-weight="500" letter-spacing="0">Murmur</text>
+    <path d="M7 162H470" stroke="#F5B957" stroke-width="10" stroke-linecap="round"/>
+    <text x="3" y="213" fill="#596066" font-family="'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', 'IBM Plex Mono', Menlo, Consolas, monospace" font-size="34" font-weight="400" letter-spacing="0">offline speech_to_text</text>
+  </g>
+</svg>

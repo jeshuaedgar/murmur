@@ -1,0 +1,18 @@
+<svg width="760" height="256" viewBox="0 0 760 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Murmur top-left logo concept</title>
+  <desc id="desc">SVG recreation of the preferred top-left Murmur concept: waveform m, text cursor, and monospaced wordmark.</desc>
+  <defs>
+    <clipPath id="murmur-logo-mark-clip">
+      <rect width="256" height="256" rx="54"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#murmur-logo-mark-clip)">
+    <rect width="256" height="256" rx="54" fill="#202528"/>
+    <path d="M-30 166H38C59 166 76 149 76 128V96C76 65 100 42 131 42C162 42 186 65 186 96V166M186 166V100C186 76 204 59 226 59C248 59 266 76 266 100V128C266 149 283 166 304 166H330" stroke="#F4B755" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M209 76H243M226 76V188M209 188H243" stroke="#F2F5F2" stroke-width="9" stroke-linecap="round"/>
+    <path d="M226 99V165" stroke="#F2F5F2" stroke-width="3.5" stroke-linecap="round" opacity=".5"/>
+    <rect x="1.5" y="1.5" width="253" height="253" rx="52.5" stroke="#F8F5ED" stroke-opacity=".08" stroke-width="3"/>
+  </g>
+  <text x="302" y="149" fill="#202528" font-family="'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', 'IBM Plex Mono', Menlo, Consolas, monospace" font-size="96" font-weight="500" letter-spacing="0">Murmur</text>
+  <path d="M308 182H700" stroke="#F4B755" stroke-width="8" stroke-linecap="round"/>
+</svg>
