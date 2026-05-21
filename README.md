@@ -12,6 +12,8 @@ Local-first, cross-platform speech-to-text desktop app using Tauri 2 + Rust + Ty
 - Offline reuse of installed models.
 - WAV file transcription locally.
 - Microphone recording path (browser capture -> live chunk transcription + final local WAV transcription).
+- Audio input device selection in Settings (persisted).
+- File transcription job progress events with cancellation.
 - Settings persistence (default model, language, translate, auto-copy).
 
 ## Repository layout
