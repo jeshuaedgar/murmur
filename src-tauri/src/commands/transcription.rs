@@ -7,6 +7,25 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State};
 use uuid::Uuid;
 
+fn ensure_model_ready(model_path: &std::path::Path, model_id: &str) -> Result<(), AppError> {
+    if model_path.exists() {
+        return Ok(());
+    }
+
+    let part_path = model_path.with_extension("bin.part");
+    if part_path.exists() {
+        return Err(AppError::Conflict(format!(
+            "model '{}' download is incomplete. Please reinstall it from Models.",
+            model_id
+        )));
+    }
+
+    Err(AppError::NotFound(format!(
+        "model '{}' is not installed",
+        model_id
+    )))
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptionTaskInfo {
@@ -35,12 +54,7 @@ pub async fn transcribe_file(
         .await
         .map_err(String::from)?;
 
-    if !model_path.exists() {
-        return Err(String::from(AppError::NotFound(format!(
-            "model '{}' is not installed",
-            options.model_id
-        ))));
-    }
+    ensure_model_ready(&model_path, &options.model_id).map_err(String::from)?;
 
     let audio = audio_convert::load_audio_as_mono_f32_16khz(&path).map_err(String::from)?;
 
@@ -82,12 +96,7 @@ pub async fn transcribe_pcm(
         .await
         .map_err(String::from)?;
 
-    if !model_path.exists() {
-        return Err(String::from(AppError::NotFound(format!(
-            "model '{}' is not installed",
-            options.model_id
-        ))));
-    }
+    ensure_model_ready(&model_path, &options.model_id).map_err(String::from)?;
 
     if samples.is_empty() {
         return Err(String::from(AppError::InvalidInput(
@@ -161,12 +170,12 @@ pub async fn start_transcription_file(
                 return;
             }
         };
-        if !model_path.exists() {
+        if let Err(err) = ensure_model_ready(&model_path, &options.model_id) {
             let _ = app_handle.emit(
                 "transcription-error",
                 serde_json::json!({
                     "taskId": task_id_for_task,
-                    "error": format!("model '{}' is not installed", options.model_id),
+                    "error": err.to_string(),
                 }),
             );
             cleanup_transcription_flag(&app_handle, &task_id_for_task).await;

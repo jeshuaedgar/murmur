@@ -65,6 +65,13 @@ function encodeWav(samples: Float32Array, sampleRate: number): Uint8Array {
   return new Uint8Array(buffer);
 }
 
+function normalizeTranscriptText(text: string) {
+  return text
+    .replace(/\[BLANK_AUDIO\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function useTranscriptionActions({
   settings,
   settingsRef,
@@ -84,6 +91,17 @@ export function useTranscriptionActions({
   const chunksRef = useRef<Float32Array[]>([]);
   const liveTimerRef = useRef<number | null>(null);
   const liveInFlightRef = useRef(false);
+
+  function mergeChunks(chunks: Float32Array[]) {
+    const totalSamples = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Float32Array(totalSamples);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return merged;
+  }
 
   async function startRecording() {
     if (isRecording) return;
@@ -114,13 +132,9 @@ export function useTranscriptionActions({
 
         const totalSamples = chunksRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
         if (totalSamples < audioCtxRef.current.sampleRate) return;
-
-        const merged = new Float32Array(totalSamples);
-        let offset = 0;
-        for (const chunk of chunksRef.current) {
-          merged.set(chunk, offset);
-          offset += chunk.length;
-        }
+        const chunkSnapshot = chunksRef.current;
+        chunksRef.current = [];
+        const merged = mergeChunks(chunkSnapshot);
 
         try {
           liveInFlightRef.current = true;
@@ -129,11 +143,16 @@ export function useTranscriptionActions({
             language: settingsRef.current.language === "auto" ? null : settingsRef.current.language,
             translate: settingsRef.current.translate,
           });
-          if (result.text.trim().length > 0) {
-            setTranscript(result.text);
+          const cleaned = normalizeTranscriptText(result.text);
+          if (cleaned.length > 0) {
+            setTranscript((current) => {
+              if (!current.trim()) return cleaned;
+              return `${current.trimEnd()} ${cleaned}`;
+            });
           }
         } catch {
           // keep recording if partial request fails
+          chunksRef.current = [...chunkSnapshot, ...chunksRef.current];
         } finally {
           liveInFlightRef.current = false;
         }
@@ -152,37 +171,54 @@ export function useTranscriptionActions({
       liveTimerRef.current = null;
     }
 
-    const sampleRate = audioCtxRef.current.sampleRate;
-    processorRef.current?.disconnect();
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    await audioCtxRef.current.close();
+    try {
+      const sampleRate = audioCtxRef.current.sampleRate;
+      processorRef.current?.disconnect();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      await audioCtxRef.current.close();
 
-    const totalSamples = chunksRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
-    const merged = new Float32Array(totalSamples);
-    let offset = 0;
-    for (const chunk of chunksRef.current) {
-      merged.set(chunk, offset);
-      offset += chunk.length;
+      const merged = mergeChunks(chunksRef.current);
+      const wav = encodeWav(merged, sampleRate);
+
+      setStatus("transcribing");
+
+      const result = await api.transcribePcm(Array.from(merged), sampleRate, {
+        modelId: settings.defaultModelId,
+        language: settings.language === "auto" ? null : settings.language,
+        translate: settings.translate,
+      });
+
+      const cleaned = normalizeTranscriptText(result.text);
+      if (cleaned.length > 0) {
+        setTranscript((current) => {
+          if (!current.trim()) return cleaned;
+          return `${current.trimEnd()} ${cleaned}`;
+        });
+        if (settings.autoCopy) await copyText(cleaned);
+      }
+
+      // Keep local WAV files as a convenience, but do not fail transcription if permissions block writes.
+      try {
+        await mkdir("recordings", { baseDir: BaseDirectory.AppData, recursive: true });
+        const stamp = Date.now();
+        const fileName = `recordings/recording-${stamp}.wav`;
+        await writeFile(fileName, wav, { baseDir: BaseDirectory.AppData });
+        if (appDataDir) {
+          setStatus(`done (saved: ${appDataDir}/${fileName})`);
+          return;
+        }
+      } catch {
+        // no-op: live/local transcription should work even without recording directory permissions
+      }
+
+      setStatus("done");
+    } finally {
+      setIsRecording(false);
+      processorRef.current = null;
+      streamRef.current = null;
+      audioCtxRef.current = null;
+      chunksRef.current = [];
     }
-
-    const wav = encodeWav(merged, sampleRate);
-    await mkdir("recordings", { baseDir: BaseDirectory.AppData, recursive: true });
-    const stamp = Date.now();
-    const fileName = `recordings/recording-${stamp}.wav`;
-    await writeFile(fileName, wav, { baseDir: BaseDirectory.AppData });
-
-    setIsRecording(false);
-    setStatus("transcribing");
-
-    const result = await api.transcribeRecording(`${appDataDir}/${fileName}`, {
-      modelId: settings.defaultModelId,
-      language: settings.language === "auto" ? null : settings.language,
-      translate: settings.translate,
-    });
-
-    setTranscript(result.text);
-    if (settings.autoCopy && result.text) await copyText(result.text);
-    setStatus("done");
   }
 
   async function startFileTranscription() {

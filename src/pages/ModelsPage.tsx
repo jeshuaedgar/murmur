@@ -1,52 +1,145 @@
+import { useMemo, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Boxes, Download, Trash2 } from "lucide-react";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemHeader,
+  ItemTitle,
+} from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
 import { useAppState } from "@/context/app-state";
 
 export function ModelsPage() {
   const { models, installedById, downloadProgress, downloadModel, deleteModel } = useAppState();
+  const [pendingRemoveModelId, setPendingRemoveModelId] = useState<string | null>(null);
+
+  const pendingModel = useMemo(
+    () => models.find((model) => model.id === pendingRemoveModelId) ?? null,
+    [models, pendingRemoveModelId],
+  );
+
+  async function confirmRemove() {
+    if (!pendingRemoveModelId) {
+      return;
+    }
+    await deleteModel(pendingRemoveModelId).catch(() => undefined);
+    setPendingRemoveModelId(null);
+  }
 
   return (
-    <div>
-      <div className="mb-3 text-sm text-muted-foreground">Download once from Hugging Face, then run offline.</div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <h1 className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <Boxes className="size-5 text-muted-foreground" />
+          Model Library
+        </h1>
+        <p className="text-sm text-muted-foreground">Download once from Hugging Face, then run offline.</p>
+      </header>
+
+      <ItemGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {models.map((model) => {
           const installedModel = installedById.get(model.id);
           const progress = Array.from(downloadProgress.values()).find((item) => item.modelId === model.id);
+          const progressPct = progress?.progressPct;
+          const hasProgress = typeof progressPct === "number";
+          const progressValue = hasProgress ? Math.max(0, Math.min(progressPct, 100)) : 0;
+          const isInstalled = Boolean(installedModel?.installed);
+          const isDownloading = hasProgress && progressValue < 100;
+          const actionLabel = isInstalled ? "Reinstall model" : "Install model";
 
           return (
-            <Card key={model.id}>
-              <CardHeader>
-                <CardTitle className="text-base">{model.name}</CardTitle>
-                <div className="flex flex-wrap gap-2">
-                  {model.recommended && <Badge>Recommended</Badge>}
-                  {model.fastest && <Badge variant="secondary">Fastest</Badge>}
-                  {model.bestQuality && <Badge variant="outline">Best Quality</Badge>}
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <p className="text-sm text-muted-foreground">{model.description}</p>
-                <code className="text-xs">{model.id}</code>
-                <p className="text-sm">{installedModel?.installed ? "Installed" : "Not installed"}</p>
+            <Item
+              key={model.id}
+              variant="muted"
+              className="h-full border-0 bg-card px-4 py-4 shadow-[0_2px_12px_hsl(var(--foreground)/0.06)]"
+            >
+              <ItemHeader className="items-start">
+                <ItemTitle className="text-lg">{model.name}</ItemTitle>
+                <ItemActions className="flex-wrap justify-end gap-1.5">
+                  <Badge variant={isInstalled ? "default" : "destructive"}>
+                    {isInstalled ? "Installed locally" : "Not installed"}
+                  </Badge>
+                  {model.recommended && <Badge variant="secondary">Recommended</Badge>}
+                  {model.fastest && <Badge variant="outline">Optimized for speed</Badge>}
+                  {model.bestQuality && <Badge variant="secondary">High accuracy</Badge>}
+                </ItemActions>
+              </ItemHeader>
 
-                {typeof progress?.progressPct === "number" && (
-                  <Progress value={Math.max(0, Math.min(progress.progressPct, 100))} />
+              <ItemContent className="gap-3 md:grid md:grid-cols-[1fr_auto] md:gap-4">
+                <div className="space-y-3">
+                  <ItemDescription className="line-clamp-none text-sm">{model.description}</ItemDescription>
+                  <p className="text-xs text-muted-foreground">
+                    Model ID: <code>{model.id}</code>
+                  </p>
+                </div>
+
+                {hasProgress && (
+                  <div className="space-y-2 rounded-lg bg-muted/40 p-2 md:min-w-56">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-medium text-foreground">
+                        {isDownloading ? "Downloading model" : "Download complete"}
+                      </span>
+                      <span className="text-muted-foreground">{Math.round(progressValue)}%</span>
+                    </div>
+                    <Progress value={progressValue} aria-label={`Download progress for ${model.name}`} />
+                  </div>
                 )}
+              </ItemContent>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={() => void downloadModel(model.id)}>
-                    {installedModel?.installed ? "Re-download" : "Download"}
+              <ItemFooter className="mt-2 justify-start">
+                <ItemActions className="flex-wrap">
+                  <Button
+                    variant="outline"
+                    disabled={isDownloading}
+                    onClick={() => void downloadModel(model.id).catch(() => undefined)}
+                  >
+                    <Download className="size-4" />
+                    {isDownloading ? "Downloading..." : actionLabel}
                   </Button>
-                  <Button variant="secondary" disabled={!installedModel?.installed} onClick={() => void deleteModel(model.id)}>
-                    Delete
+                  <Button variant="destructive" disabled={!isInstalled} onClick={() => setPendingRemoveModelId(model.id)}>
+                    <Trash2 className="size-4" />
+                    Remove local model
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </ItemActions>
+              </ItemFooter>
+            </Item>
           );
         })}
-      </div>
+      </ItemGroup>
+
+      <AlertDialog open={Boolean(pendingRemoveModelId)} onOpenChange={(open) => !open && setPendingRemoveModelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove local model?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete <strong>{pendingModel?.name ?? "this model"}</strong> from local storage. You can install it
+              again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmRemove()} disabled={!pendingModel}>
+              Remove model
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

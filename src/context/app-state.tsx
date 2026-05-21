@@ -13,6 +13,7 @@ import { useAppBootstrap } from "@/context/hooks/use-app-bootstrap";
 import { useBrowserAudioInputs } from "@/context/hooks/use-browser-audio-inputs";
 import { useTranscriptionActions } from "@/context/hooks/use-transcription-actions";
 import type { AppStateValue } from "@/context/types/app-state";
+import { getErrorMessage, toastError, toastSuccess } from "@/lib/toast";
 
 const AppStateContext = createContext<AppStateValue | null>(null);
 
@@ -92,22 +93,52 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   });
 
   async function saveSettings() {
-    await api.saveSettings(settings);
-    setStatus("settings saved");
+    try {
+      await api.saveSettings(settings);
+      setStatus("settings saved");
+      toastSuccess("Settings saved");
+    } catch (error) {
+      setStatus(getErrorMessage(error, "Failed to save settings"));
+      toastError(error, "Failed to save settings");
+      throw error;
+    }
   }
 
   async function downloadModel(modelId: string) {
-    await api.downloadModel(modelId);
+    try {
+      await api.downloadModel(modelId);
+      setStatus(`download started: ${modelId}`);
+      toastSuccess("Model download started", modelId);
+    } catch (error) {
+      setStatus(getErrorMessage(error, `Failed to start download for ${modelId}`));
+      toastError(error, `Failed to start download for ${modelId}`);
+      throw error;
+    }
   }
 
   async function deleteModel(modelId: string) {
-    await api.deleteModel(modelId);
-    setInstalled(await api.getInstalledModels());
+    try {
+      await api.deleteModel(modelId);
+      setInstalled(await api.getInstalledModels());
+      setStatus(`removed model: ${modelId}`);
+      toastSuccess("Model removed", modelId);
+    } catch (error) {
+      setStatus(getErrorMessage(error, `Failed to remove model ${modelId}`));
+      toastError(error, `Failed to remove model ${modelId}`);
+      throw error;
+    }
   }
 
   async function cancelTranscription(taskId: string) {
-    await api.cancelTranscription(taskId);
-    setStatus("cancel requested");
+    try {
+      await api.cancelTranscription(taskId);
+      setStatus("cancel requested");
+      toastSuccess("Cancel requested");
+    } catch (error) {
+      setStatus(getErrorMessage(error, "Failed to cancel transcription"));
+      toastError(error, "Failed to cancel transcription");
+      throw error;
+    }
   }
 
   const value: AppStateValue = {

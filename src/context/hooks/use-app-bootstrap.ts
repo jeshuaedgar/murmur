@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "@/lib/api/tauri";
@@ -11,6 +11,7 @@ import type {
 } from "@/lib/types/models";
 import type { TranscriptionResult } from "@/lib/types/transcription";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
+import { getErrorMessage, toastError, toastSuccess } from "@/lib/toast";
 
 type UseAppBootstrapParams = {
   setModels: Dispatch<SetStateAction<ModelInfo[]>>;
@@ -43,7 +44,13 @@ export function useAppBootstrap({
   autoCopyEnabledRef,
   teardownRecordingResources,
 }: UseAppBootstrapParams) {
+  const didInitRef = useRef(false);
+  const lastStartupErrorRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
     let mounted = true;
     const cleanup: Array<() => void> = [];
 
@@ -70,15 +77,38 @@ export function useAppBootstrap({
       if (!mounted) return;
       setModels(allModels);
       setInstalled(allInstalled);
-      setSettings(appSettings);
+      const defaultInstalled = allInstalled.some(
+        (model) => model.id === appSettings.defaultModelId && model.installed,
+      );
+      const fallbackInstalled = allInstalled.find((model) => model.installed);
+      const shouldSwitchDefault = !defaultInstalled && Boolean(fallbackInstalled);
+      const nextSettings = shouldSwitchDefault
+        ? { ...appSettings, defaultModelId: fallbackInstalled!.id }
+        : appSettings;
+      setSettings(nextSettings);
       setAppDataDir(dataDir);
       setBackendAudioInputs(audioInputs);
 
-      try {
-        const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        permissionStream.getTracks().forEach((track) => track.stop());
-      } catch {
-        // ignore permissions errors at bootstrap
+      if (shouldSwitchDefault) {
+        setStatus(`Default model switched to ${fallbackInstalled!.id}.`);
+        toastSuccess("Default model updated", `Using installed model: ${fallbackInstalled!.id}`);
+        try {
+          await api.saveSettings(nextSettings);
+        } catch (error) {
+          setStatus(getErrorMessage(error, "Could not save updated model preference"));
+          toastError(error, "Could not save updated model preference");
+        }
+      } else if (!defaultInstalled) {
+        setStatus("No local model is installed. Open Models to install one.");
+      }
+
+      if ("mediaDevices" in navigator && typeof navigator.mediaDevices?.getUserMedia === "function") {
+        try {
+          const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          permissionStream.getTracks().forEach((track) => track.stop());
+        } catch {
+          // ignore permissions errors at bootstrap
+        }
       }
 
       await refreshBrowserAudioInputs();
@@ -102,6 +132,7 @@ export function useAppBootstrap({
           });
           setInstalled(await api.getInstalledModels());
           setStatus(`model ${event.payload.modelId} installed`);
+          toastSuccess("Model installed", event.payload.modelId);
         }),
       );
 
@@ -112,7 +143,8 @@ export function useAppBootstrap({
             next.delete(event.payload.taskId);
             return next;
           });
-          setStatus(`download error (${event.payload.modelId}): ${event.payload.error}`);
+          setStatus(`Download failed for ${event.payload.modelId}. ${getErrorMessage(event.payload.error, "Please try again.")}`);
+          toastError(event.payload.error, `Download failed for ${event.payload.modelId}`);
         }),
       );
 
@@ -137,6 +169,7 @@ export function useAppBootstrap({
               void copyText(nextText);
             }
             setStatus("done");
+            toastSuccess("Transcription complete");
             return null;
           });
         }),
@@ -146,7 +179,8 @@ export function useAppBootstrap({
         await listen<{ taskId: string; error: string }>("transcription-error", (event) => {
           setActiveTranscriptionTaskId((current) => {
             if (current !== event.payload.taskId) return current;
-            setStatus(`transcription error: ${event.payload.error}`);
+            setStatus(getErrorMessage(event.payload.error, "Transcription failed"));
+            toastError(event.payload.error, "Transcription failed");
             return null;
           });
         }),
@@ -157,6 +191,7 @@ export function useAppBootstrap({
           setActiveTranscriptionTaskId((current) => {
             if (current !== event.payload.taskId) return current;
             setStatus("transcription canceled");
+            toastSuccess("Transcription canceled");
             return null;
           });
         }),
@@ -164,27 +199,21 @@ export function useAppBootstrap({
     };
 
     void init().catch((err) => {
-      if (mounted) setStatus(`Bootstrap failed: ${String(err)}`);
+      if (mounted) {
+        const message = `App startup failed. ${getErrorMessage(err, "Please restart the app.")}`;
+        setStatus(message);
+        if (lastStartupErrorRef.current !== message) {
+          toastError(err, "App bootstrap failed");
+          lastStartupErrorRef.current = message;
+        }
+      }
     });
 
     return () => {
+      didInitRef.current = false;
       mounted = false;
       cleanup.forEach((unsub) => unsub());
       teardownRecordingResources();
     };
-  }, [
-    autoCopyEnabledRef,
-    copyText,
-    refreshBrowserAudioInputs,
-    setActiveTranscriptionTaskId,
-    setAppDataDir,
-    setBackendAudioInputs,
-    setDownloadProgress,
-    setInstalled,
-    setModels,
-    setSettings,
-    setStatus,
-    setTranscript,
-    teardownRecordingResources,
-  ]);
+  }, []);
 }
