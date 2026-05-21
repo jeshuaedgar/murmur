@@ -4,7 +4,7 @@ import { Boxes, House, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-const murmurLogoUrl = new URL("./assets/murmur-logo.svg", import.meta.url).href;
+const murmurMarkUrl = new URL("./assets/murmur-mark.svg", import.meta.url).href;
 
 function NavButton({
 	to,
@@ -41,7 +41,7 @@ export default function App({ children }: { children: ReactNode }) {
 				<div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
 					<div className="flex items-center gap-3">
 						<div className="flex items-center gap-3">
-							<img src={murmurLogoUrl} alt="Murmur" className="h-12 w-auto" />
+							<img src={murmurMarkUrl} alt="Murmur" className="size-12" />
 							<p className="mt-1">
 								Offline-first transcription
 							</p>
