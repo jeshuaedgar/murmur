@@ -13,6 +13,7 @@ pub struct AppSettings {
     pub language: String,
     pub translate: bool,
     pub auto_copy: bool,
+    pub audio_input_device_id: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -22,6 +23,7 @@ impl Default for AppSettings {
             language: "auto".to_string(),
             translate: false,
             auto_copy: false,
+            audio_input_device_id: None,
         }
     }
 }
@@ -38,6 +40,7 @@ pub struct AppState {
     pub model_manager: ModelManager,
     pub whisper_service: WhisperService,
     pub download_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    pub transcription_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 impl AppState {
@@ -46,6 +49,7 @@ impl AppState {
             model_manager: ModelManager::new(),
             whisper_service: WhisperService::new(),
             download_flags: Mutex::new(HashMap::new()),
+            transcription_flags: Mutex::new(HashMap::new()),
         }
     }
 
