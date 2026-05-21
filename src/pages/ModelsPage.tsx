@@ -45,11 +45,11 @@ export function ModelsPage() {
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <h1 className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <Boxes className="size-5 text-muted-foreground" />
+        <h1 className="display-title inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <Boxes className="size-5" />
           Model Library
         </h1>
-        <p className="text-sm text-muted-foreground">Download once from Hugging Face, then run offline.</p>
+        <p className="text-sm">Download once from Hugging Face, then run offline.</p>
       </header>
 
       <ItemGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -62,19 +62,28 @@ export function ModelsPage() {
           const isInstalled = Boolean(installedModel?.installed);
           const isDownloading = hasProgress && progressValue < 100;
           const actionLabel = isInstalled ? "Reinstall model" : "Install model";
+          const statusLabel = isDownloading
+            ? "Downloading"
+            : isInstalled
+              ? "Installed locally"
+              : "Not installed";
+          const statusBadgeVariant = isDownloading
+            ? "secondary"
+            : isInstalled
+              ? "default"
+              : "outline";
+          const installButtonVariant = isInstalled ? "secondary" : "default";
 
           return (
             <Item
               key={model.id}
-              variant="muted"
-              className="h-full border-0 bg-card px-4 py-4 shadow-[0_2px_12px_hsl(var(--foreground)/0.06)]"
+              variant="outline"
+              className="feature-card island-shell h-full px-4 py-4"
             >
               <ItemHeader className="items-start">
                 <ItemTitle className="text-lg">{model.name}</ItemTitle>
                 <ItemActions className="flex-wrap justify-end gap-1.5">
-                  <Badge variant={isInstalled ? "default" : "destructive"}>
-                    {isInstalled ? "Installed locally" : "Not installed"}
-                  </Badge>
+                  <Badge variant={statusBadgeVariant}>{statusLabel}</Badge>
                   {model.recommended && <Badge variant="secondary">Recommended</Badge>}
                   {model.fastest && <Badge variant="outline">Optimized for speed</Badge>}
                   {model.bestQuality && <Badge variant="secondary">High accuracy</Badge>}
@@ -84,18 +93,18 @@ export function ModelsPage() {
               <ItemContent className="gap-3 md:grid md:grid-cols-[1fr_auto] md:gap-4">
                 <div className="space-y-3">
                   <ItemDescription className="line-clamp-none text-sm">{model.description}</ItemDescription>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs">
                     Model ID: <code>{model.id}</code>
                   </p>
                 </div>
 
                 {hasProgress && (
-                  <div className="space-y-2 rounded-lg bg-muted/40 p-2 md:min-w-56">
+                  <div className="space-y-2 p-2 md:min-w-56">
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium">
                         {isDownloading ? "Downloading model" : "Download complete"}
                       </span>
-                      <span className="text-muted-foreground">{Math.round(progressValue)}%</span>
+                      <span>{Math.round(progressValue)}%</span>
                     </div>
                     <Progress value={progressValue} aria-label={`Download progress for ${model.name}`} />
                   </div>
@@ -105,14 +114,18 @@ export function ModelsPage() {
               <ItemFooter className="mt-2 justify-start">
                 <ItemActions className="flex-wrap">
                   <Button
-                    variant="outline"
+                    variant={installButtonVariant}
                     disabled={isDownloading}
                     onClick={() => void downloadModel(model.id).catch(() => undefined)}
                   >
                     <Download className="size-4" />
                     {isDownloading ? "Downloading..." : actionLabel}
                   </Button>
-                  <Button variant="destructive" disabled={!isInstalled} onClick={() => setPendingRemoveModelId(model.id)}>
+                  <Button
+                    variant="destructive"
+                    disabled={!isInstalled || isDownloading}
+                    onClick={() => setPendingRemoveModelId(model.id)}
+                  >
                     <Trash2 className="size-4" />
                     Remove local model
                   </Button>

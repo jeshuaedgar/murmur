@@ -37,15 +37,15 @@ export function HomePage() {
           <Badge>{status}</Badge>
           {isRecording && <Badge variant="outline">Recording</Badge>}
         </div>
-        <h1 className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <AudioLines className="size-5 text-muted-foreground" />
+        <h1 className="inline-flex items-center gap-2">
+          <AudioLines className="size-5" />
           Transcription Workspace
         </h1>
       </header>
 
-      <Card className="border-0 bg-card/92 ring-0 shadow-[0_2px_14px_hsl(var(--foreground)/0.06)]">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-base">Capture Controls</CardTitle>
+          <CardTitle>Capture Controls</CardTitle>
           <CardDescription>Start recording audio or import an existing WAV file.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -101,21 +101,21 @@ export function HomePage() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
             <div className="flex items-center gap-2">
               <Switch checked={liveMode} disabled={isRecording} onCheckedChange={setLiveMode} id="live-mode" />
               <Label htmlFor="live-mode">Live transcription</Label>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p>
               Live mode is locked while recording to prevent runtime conflicts.
             </p>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-0 bg-card/92 ring-0 shadow-[0_2px_14px_hsl(var(--foreground)/0.06)]">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-base">Transcript</CardTitle>
+          <CardTitle>Transcript</CardTitle>
           <CardDescription>Review, edit, copy, and clear transcribed text.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -139,9 +139,9 @@ export function HomePage() {
       </Card>
 
       {!isTauriRuntime && (
-        <Card className="border-0 bg-muted/55 ring-0 shadow-none">
+        <Card>
           <CardContent className="py-3">
-            <p className="text-sm text-muted-foreground">
+            <p>
               Web preview mode: backend commands are disabled. Run <code>npm run tauri dev</code> for full functionality.
             </p>
           </CardContent>
