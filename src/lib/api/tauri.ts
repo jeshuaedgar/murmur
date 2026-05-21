@@ -20,6 +20,8 @@ export const api = {
   deleteModel: (modelId: string) => invoke<void>("delete_model", { modelId }),
   getSettings: () => invoke<AppSettings>("get_settings"),
   saveSettings: (settings: AppSettings) => invoke<void>("save_settings", { settings }),
+  isStartAtLoginEnabled: () => invoke<boolean>("is_start_at_login_enabled"),
+  setStartAtLogin: (enabled: boolean) => invoke<void>("set_start_at_login", { enabled }),
   transcribeFile: (path: string, options: TranscriptionOptions) =>
     invoke<TranscriptionResult>("transcribe_file", { path, options }),
   transcribeRecording: (path: string, options: TranscriptionOptions) =>

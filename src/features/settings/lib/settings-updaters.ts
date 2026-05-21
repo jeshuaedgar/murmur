@@ -10,6 +10,7 @@ export const updateDefaultModelId = updateSetting("defaultModelId");
 export const updateLanguage = updateSetting("language");
 export const updateTranslate = updateSetting("translate");
 export const updateAutoCopy = updateSetting("autoCopy");
+export const updateStartAtLogin = updateSetting("startAtLogin");
 export const updateAudioInputDeviceId: SettingsUpdater<string> = (value) => (prev) => ({
   ...prev,
   audioInputDeviceId: value || null,

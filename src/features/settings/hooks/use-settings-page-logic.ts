@@ -1,32 +1,93 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
 import type { AppSettings } from "@/lib/types/settings";
-import type { ModelInfo } from "@/lib/types/models";
+import type { InstalledModel, ModelInfo } from "@/lib/types/models";
+import { compareLabs } from "@/features/models/lib/lab-order";
 import {
   updateAudioInputDeviceId,
   updateAutoCopy,
   updateDefaultModelId,
   updateLanguage,
+  updateStartAtLogin,
   updateTranslate,
 } from "@/features/settings/lib/settings-updaters";
 
 type UseSettingsPageLogicArgs = {
   models: ModelInfo[];
+  installedById: Map<string, InstalledModel>;
   browserAudioInputs: Array<{ id: string; label: string }>;
   backendAudioInputs: Array<{ id: string; label: string }>;
+  defaultModelId: string;
   setSettings: Dispatch<SetStateAction<AppSettings>>;
   saveSettings: () => Promise<void>;
 };
 
+export type ModelOption = {
+  id: string;
+  name: string;
+  lab: string;
+  disabled: boolean;
+  statusLabel: "Installed" | "Not installed";
+};
+
+export type ModelOptionGroup = {
+  lab: string;
+  options: ModelOption[];
+};
+
+export function buildModelOptionsByLab(
+  models: ModelInfo[],
+  installedById: Map<string, InstalledModel>,
+): ModelOptionGroup[] {
+  const grouped = new Map<string, ModelOption[]>();
+
+  for (const model of models) {
+    const installed = Boolean(installedById.get(model.id)?.installed);
+    const current = grouped.get(model.lab) ?? [];
+    current.push({
+      id: model.id,
+      name: model.name,
+      lab: model.lab,
+      disabled: !installed,
+      statusLabel: installed ? "Installed" : "Not installed",
+    });
+    grouped.set(model.lab, current);
+  }
+
+  return Array.from(grouped.entries())
+    .sort(([a], [b]) => compareLabs(a, b))
+    .map(([lab, options]) => ({ lab, options }));
+}
+
+export function resolveInstalledDefaultModelId(
+  defaultModelId: string,
+  models: ModelInfo[],
+  installedById: Map<string, InstalledModel>,
+): string | null {
+  if (installedById.get(defaultModelId)?.installed) {
+    return defaultModelId;
+  }
+
+  const fallback = models.find((model) => installedById.get(model.id)?.installed);
+  return fallback?.id ?? null;
+}
+
 export function useSettingsPageLogic({
   models,
+  installedById,
   browserAudioInputs,
   backendAudioInputs,
+  defaultModelId,
   setSettings,
   saveSettings,
 }: UseSettingsPageLogicArgs) {
-  const modelOptions = useMemo(
-    () => models.map((model) => ({ id: model.id, name: model.name })),
-    [models],
+  const modelOptionsByLab = useMemo(
+    () => buildModelOptionsByLab(models, installedById),
+    [installedById, models],
+  );
+
+  const resolvedDefaultModelId = useMemo(
+    () => resolveInstalledDefaultModelId(defaultModelId, models, installedById),
+    [defaultModelId, installedById, models],
   );
 
   const browserInputOptions = useMemo(
@@ -59,12 +120,17 @@ export function useSettingsPageLogic({
     (checked: boolean) => setSettings(updateAutoCopy(checked)),
     [setSettings],
   );
+  const onStartAtLoginChange = useCallback(
+    (checked: boolean) => setSettings(updateStartAtLogin(checked)),
+    [setSettings],
+  );
   const onSaveSettings = useCallback(async () => {
     await saveSettings().catch(() => undefined);
   }, [saveSettings]);
 
   return {
-    modelOptions,
+    modelOptionsByLab,
+    resolvedDefaultModelId,
     browserInputOptions,
     audioInputsSummary,
     onDefaultModelChange,
@@ -72,6 +138,7 @@ export function useSettingsPageLogic({
     onAudioInputChange,
     onTranslateChange,
     onAutoCopyChange,
+    onStartAtLoginChange,
     onSaveSettings,
   };
 }

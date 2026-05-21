@@ -25,6 +25,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     language: "auto",
     translate: false,
     autoCopy: false,
+    startAtLogin: false,
     audioInputDeviceId: null,
   });
   const [transcript, setTranscript] = useState("");
@@ -94,7 +95,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   async function saveSettings() {
     try {
-      await api.saveSettings(settings);
+      await Promise.all([
+        api.saveSettings(settings),
+        api.setStartAtLogin(settings.startAtLogin),
+      ]);
       setStatus("settings saved");
       toastSuccess("Settings saved");
     } catch (error) {

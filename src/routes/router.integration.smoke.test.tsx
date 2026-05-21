@@ -25,6 +25,7 @@ const mockState: AppStateValue = {
     language: "auto",
     translate: false,
     autoCopy: false,
+    startAtLogin: false,
     audioInputDeviceId: null,
   },
   transcript: "",

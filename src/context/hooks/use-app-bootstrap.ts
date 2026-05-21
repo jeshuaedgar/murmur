@@ -75,12 +75,13 @@ export function useAppBootstrap({
         return;
       }
 
-      const [allModels, allInstalled, appSettings, dataDir, audioInputs] = await Promise.all([
+      const [allModels, allInstalled, appSettings, dataDir, audioInputs, startAtLoginEnabled] = await Promise.all([
         api.listModels(),
         api.getInstalledModels(),
         api.getSettings(),
         api.getAppDataDir(),
         api.getAudioInputs(),
+        api.isStartAtLoginEnabled().catch(() => false),
       ]);
 
       if (!mounted) return;
@@ -92,8 +93,8 @@ export function useAppBootstrap({
       const fallbackInstalled = allInstalled.find((model) => model.installed);
       const shouldSwitchDefault = !defaultInstalled && Boolean(fallbackInstalled);
       const nextSettings = shouldSwitchDefault
-        ? { ...appSettings, defaultModelId: fallbackInstalled!.id }
-        : appSettings;
+        ? { ...appSettings, defaultModelId: fallbackInstalled!.id, startAtLogin: startAtLoginEnabled }
+        : { ...appSettings, startAtLogin: startAtLoginEnabled };
       setSettings(nextSettings);
       setAppDataDir(dataDir);
       setBackendAudioInputs(audioInputs);

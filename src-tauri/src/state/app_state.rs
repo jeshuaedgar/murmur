@@ -7,11 +7,13 @@ use tokio::sync::Mutex;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(default)]
 pub struct AppSettings {
     pub default_model_id: String,
     pub language: String,
     pub translate: bool,
     pub auto_copy: bool,
+    pub start_at_login: bool,
     pub audio_input_device_id: Option<String>,
 }
 
@@ -22,6 +24,7 @@ impl Default for AppSettings {
             language: "auto".to_string(),
             translate: false,
             auto_copy: false,
+            start_at_login: false,
             audio_input_device_id: None,
         }
     }

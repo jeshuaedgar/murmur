@@ -10,9 +10,11 @@ use std::sync::{
 use state::app_state::AppState;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
+    image::Image,
     tray::{MouseButton, MouseButtonState, TrayIconEvent},
     AppHandle, Manager, WebviewWindow,
 };
+use tauri_plugin_autostart::MacosLauncher;
 
 const MAIN_WINDOW_LABEL: &str = "main";
 const MENU_ID_TOGGLE_WINDOW: &str = "toggle_window";
@@ -46,6 +48,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            None::<Vec<&str>>,
+        ))
         .setup({
             let quit_requested = Arc::clone(&quit_requested);
             move |app| {
@@ -56,8 +62,27 @@ pub fn run() {
                     .items(&[&toggle_item, &quit_item])
                     .build()?;
 
+                #[cfg(target_os = "macos")]
+                let tray_icon = if let Ok(decoded) =
+                    image::load_from_memory(include_bytes!("../icons/tray-macos-template.png"))
+                {
+                    let rgba = decoded.to_rgba8();
+                    let (width, height) = rgba.dimensions();
+                    Image::new_owned(rgba.into_raw(), width, height)
+                } else {
+                    app.default_window_icon().expect("default window icon must exist").clone().into()
+                };
+
+                #[cfg(not(target_os = "macos"))]
+                let tray_icon = app
+                    .default_window_icon()
+                    .expect("default window icon must exist")
+                    .clone()
+                    .into();
+
                 tauri::tray::TrayIconBuilder::new()
-                    .icon(app.default_window_icon().unwrap().clone())
+                    .icon(tray_icon)
+                    .icon_as_template(cfg!(target_os = "macos"))
                     .menu(&tray_menu)
                     .show_menu_on_left_click(false)
                     .on_menu_event({
@@ -89,13 +114,15 @@ pub fn run() {
                 with_main_window(app.handle(), {
                     let quit_requested = Arc::clone(&quit_requested);
                     move |window| {
+                        let window = window.clone();
+                        let window_for_close = window.clone();
                         window.on_window_event({
                             let quit_requested = Arc::clone(&quit_requested);
                             move |event| {
                                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                                     if !quit_requested.load(Ordering::SeqCst) {
                                         api.prevent_close();
-                                        let _ = window.hide();
+                                        let _ = window_for_close.hide();
                                     }
                                 }
                             }
@@ -117,6 +144,8 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::save_settings,
             commands::settings::get_app_data_dir,
+            commands::settings::is_start_at_login_enabled,
+            commands::settings::set_start_at_login,
             commands::transcription::transcribe_file,
             commands::transcription::transcribe_recording,
             commands::transcription::transcribe_pcm,

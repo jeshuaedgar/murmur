@@ -3,5 +3,6 @@ export type AppSettings = {
   language: string;
   translate: boolean;
   autoCopy: boolean;
+  startAtLogin: boolean;
   audioInputDeviceId?: string | null;
 };
