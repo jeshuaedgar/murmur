@@ -15,6 +15,7 @@ Local-first, cross-platform speech-to-text desktop app using Tauri 2 + Rust + Ty
 - Audio input device selection in Settings (persisted).
 - File transcription job progress events with cancellation.
 - Settings persistence (default model, language, translate, auto-copy).
+- Start-at-login toggle in Settings (desktop runtime).
 
 ## Repository layout
 
@@ -76,7 +77,7 @@ Models are stored in app data and managed automatically:
 - Audio import is WAV-first. MP3/M4A transcoding is not yet added.
 - Audio input device enumeration is currently a placeholder.
 - Download resume support is not implemented yet.
-- Global hotkey and start-on-login are not implemented yet.
+- Global hotkey is not implemented yet.
 - `whisper-rs` integration should be validated on each target OS with native Rust toolchains.
 - Live mode currently re-transcribes buffered audio every 2 seconds (functional MVP, not token-level streaming).
 
@@ -100,6 +101,8 @@ Models are stored in app data and managed automatically:
 ### Linux
 
 - Validate audio input behavior across PulseAudio/PipeWire environments.
+- Tray-enabled builds may require `libappindicator` packages on some distributions.
+- For Flatpak packaging, prefer setting tray temp path to app cache to avoid runtime-dir permission friction.
 
 ## License
 

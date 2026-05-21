@@ -106,7 +106,7 @@ Legend:
 - [ ] Global push-to-talk hotkey
 - [ ] Global toggle recording hotkey
 - [ ] Optional always-on-top mini overlay window
-- [ ] Start at login
+- [x] Start at login
 - [x] Tray menu controls (v1: Show/Hide + Quit)
 - [ ] Tray quick record/stop controls
 - [ ] Paste-to-active-app action after transcription
@@ -155,6 +155,8 @@ Legend:
 - [ ] Stabilize one-command release packaging across targets
 - [ ] Windows installer packaging and validation (`msi`/`exe`)
 - [ ] Linux package outputs (`AppImage`, `deb`, optionally `rpm`)
+- [ ] Validate tray dependencies on Linux (`libappindicator` family where required)
+- [ ] Add Flatpak tray temp-dir config (`temp_dir_path` -> app cache) and verify permissions
 - [ ] Code signing pipeline (macOS + Windows)
 - [ ] macOS notarization workflow
 - [ ] Auto-updater integration with signed artifacts
