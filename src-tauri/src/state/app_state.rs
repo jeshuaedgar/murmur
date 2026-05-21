@@ -1,4 +1,5 @@
 use crate::services::model_manager::ModelManager;
+use crate::services::cleanup_service::CleanupService;
 use crate::services::whisper_service::WhisperService;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,7 +15,16 @@ pub struct AppSettings {
     pub translate: bool,
     pub auto_copy: bool,
     pub start_at_login: bool,
+    pub live_mode: bool,
     pub audio_input_device_id: Option<String>,
+    pub cleanup_enabled: bool,
+    pub live_cleanup_enabled: bool,
+    pub live_cleanup_mode: String,
+    pub finalize_cleanup_mode: String,
+    pub cleanup_latency_budget_ms: u32,
+    pub cleanup_show_raw_toggle: bool,
+    pub cleanup_backend: String,
+    pub cleanup_model_id: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -25,7 +35,16 @@ impl Default for AppSettings {
             translate: false,
             auto_copy: false,
             start_at_login: false,
+            live_mode: true,
             audio_input_device_id: None,
+            cleanup_enabled: true,
+            live_cleanup_enabled: true,
+            live_cleanup_mode: "rules".to_string(),
+            finalize_cleanup_mode: "rules".to_string(),
+            cleanup_latency_budget_ms: 200,
+            cleanup_show_raw_toggle: false,
+            cleanup_backend: "rules_only".to_string(),
+            cleanup_model_id: None,
         }
     }
 }
@@ -41,6 +60,7 @@ pub struct DownloadTaskInfo {
 pub struct AppState {
     pub model_manager: ModelManager,
     pub whisper_service: Arc<WhisperService>,
+    pub cleanup_service: Arc<CleanupService>,
     pub download_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
     pub transcription_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
@@ -50,6 +70,7 @@ impl AppState {
         Self {
             model_manager: ModelManager::new(),
             whisper_service: Arc::new(WhisperService::new()),
+            cleanup_service: Arc::new(CleanupService::new()),
             download_flags: Mutex::new(HashMap::new()),
             transcription_flags: Mutex::new(HashMap::new()),
         }

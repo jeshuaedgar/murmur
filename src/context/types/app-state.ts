@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { AppSettings } from "@/lib/types/settings";
+import type { CleanupStrategy } from "@/features/transcription/cleanup/types";
 import type {
   AudioInputDevice,
   DownloadProgressEvent,
@@ -12,8 +13,11 @@ export type AppStateValue = {
   installed: InstalledModel[];
   settings: AppSettings;
   transcript: string;
+  rawTranscript: string;
+  cleanupStrategy: CleanupStrategy;
   status: string;
   appDataDir: string;
+  settingsFilePath: string;
   isRecording: boolean;
   liveMode: boolean;
   activeTranscriptionTaskId: string | null;
@@ -23,6 +27,8 @@ export type AppStateValue = {
   installedById: Map<string, InstalledModel>;
   setSettings: Dispatch<SetStateAction<AppSettings>>;
   setTranscript: Dispatch<SetStateAction<string>>;
+  setRawTranscript: Dispatch<SetStateAction<string>>;
+  setCleanupStrategy: Dispatch<SetStateAction<CleanupStrategy>>;
   setLiveMode: Dispatch<SetStateAction<boolean>>;
   setStatus: Dispatch<SetStateAction<string>>;
   startRecording: () => Promise<void>;

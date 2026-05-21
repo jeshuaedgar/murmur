@@ -4,5 +4,14 @@ export type AppSettings = {
   translate: boolean;
   autoCopy: boolean;
   startAtLogin: boolean;
+  liveMode: boolean;
   audioInputDeviceId?: string | null;
+  cleanupEnabled: boolean;
+  liveCleanupEnabled: boolean;
+  liveCleanupMode: "off" | "rules";
+  finalizeCleanupMode: "off" | "rules" | "rules_plus_model";
+  cleanupLatencyBudgetMs: number;
+  cleanupShowRawToggle: boolean;
+  cleanupBackend: "rules_only" | "local_model";
+  cleanupModelId?: string | null;
 };

@@ -12,6 +12,8 @@ import type {
 import type { TranscriptionResult } from "@/lib/types/transcription";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
 import { clearDownloadTask, mergePendingDownloadProgress } from "@/context/hooks/download-progress-state";
+import { runCleanupPipeline } from "@/features/transcription/cleanup/pipeline";
+import type { CleanupStrategy } from "@/features/transcription/cleanup/types";
 import {
   getErrorMessage,
   toastError,
@@ -26,14 +28,18 @@ type UseAppBootstrapParams = {
   setInstalled: Dispatch<SetStateAction<InstalledModel[]>>;
   setSettings: Dispatch<SetStateAction<AppSettings>>;
   setAppDataDir: Dispatch<SetStateAction<string>>;
+  setSettingsFilePath: Dispatch<SetStateAction<string>>;
   setBackendAudioInputs: Dispatch<SetStateAction<AudioInputDevice[]>>;
   setDownloadProgress: Dispatch<SetStateAction<Map<string, DownloadProgressEvent>>>;
   setActiveTranscriptionTaskId: Dispatch<SetStateAction<string | null>>;
   setStatus: Dispatch<SetStateAction<string>>;
   setTranscript: Dispatch<SetStateAction<string>>;
+  setRawTranscript: Dispatch<SetStateAction<string>>;
+  setCleanupStrategy: Dispatch<SetStateAction<CleanupStrategy>>;
   refreshBrowserAudioInputs: () => Promise<void>;
   copyText: (text: string) => Promise<void>;
   autoCopyEnabledRef: MutableRefObject<boolean>;
+  settingsRef: MutableRefObject<AppSettings>;
   teardownRecordingResources: () => void;
 };
 
@@ -42,14 +48,18 @@ export function useAppBootstrap({
   setInstalled,
   setSettings,
   setAppDataDir,
+  setSettingsFilePath,
   setBackendAudioInputs,
   setDownloadProgress,
   setActiveTranscriptionTaskId,
   setStatus,
   setTranscript,
+  setRawTranscript,
+  setCleanupStrategy,
   refreshBrowserAudioInputs,
   copyText,
   autoCopyEnabledRef,
+  settingsRef,
   teardownRecordingResources,
 }: UseAppBootstrapParams) {
   const didInitRef = useRef(false);
@@ -77,14 +87,16 @@ export function useAppBootstrap({
         return;
       }
 
-      const [allModels, allInstalled, appSettings, dataDir, audioInputs, startAtLoginEnabled] = await Promise.all([
-        api.listModels(),
-        api.getInstalledModels(),
-        api.getSettings(),
-        api.getAppDataDir(),
-        api.getAudioInputs(),
-        api.isStartAtLoginEnabled().catch(() => false),
-      ]);
+      const [allModels, allInstalled, appSettings, dataDir, settingsFilePath, audioInputs, startAtLoginEnabled] =
+        await Promise.all([
+          api.listModels(),
+          api.getInstalledModels(),
+          api.getSettings(),
+          api.getAppDataDir(),
+          api.getSettingsFilePath(),
+          api.getAudioInputs(),
+          api.isStartAtLoginEnabled().catch(() => false),
+        ]);
 
       if (!mounted) return;
       setModels(allModels);
@@ -99,6 +111,7 @@ export function useAppBootstrap({
         : { ...appSettings, startAtLogin: startAtLoginEnabled };
       setSettings(nextSettings);
       setAppDataDir(dataDir);
+      setSettingsFilePath(settingsFilePath);
       setBackendAudioInputs(audioInputs);
 
       if (shouldSwitchDefault) {
@@ -203,13 +216,22 @@ export function useAppBootstrap({
         await listen<{ taskId: string; result: TranscriptionResult }>("transcription-complete", (event) => {
           setActiveTranscriptionTaskId((current) => {
             if (current !== event.payload.taskId) return current;
-            const nextText = event.payload.result.text;
-            setTranscript(nextText);
-            if (autoCopyEnabledRef.current && nextText) {
-              void copyText(nextText);
-            }
-            setStatus("done");
-            toastSuccess("Transcription complete");
+            void (async () => {
+              const cleanup = await runCleanupPipeline(
+                event.payload.result.text,
+                settingsRef.current,
+                event.payload.result.language,
+              );
+              const nextText = cleanup.cleaned;
+              setRawTranscript(cleanup.raw);
+              setCleanupStrategy(cleanup.strategy);
+              setTranscript(nextText);
+              if (autoCopyEnabledRef.current && nextText) {
+                await copyText(nextText);
+              }
+              setStatus("done");
+              toastSuccess("Transcription complete");
+            })();
             return null;
           });
         }),

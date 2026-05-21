@@ -130,6 +130,10 @@ pub fn run() {
                     }
                 });
 
+                if let Err(error) = commands::settings::validate_settings_on_startup(app.handle()) {
+                    eprintln!("settings validation warning: {error}");
+                }
+
                 Ok(())
             }
         })
@@ -144,11 +148,13 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::save_settings,
             commands::settings::get_app_data_dir,
+            commands::settings::get_settings_file_path,
             commands::settings::is_start_at_login_enabled,
             commands::settings::set_start_at_login,
             commands::transcription::transcribe_file,
             commands::transcription::transcribe_recording,
             commands::transcription::transcribe_pcm,
+            commands::transcription::cleanup_text,
             commands::transcription::start_transcription_file,
             commands::transcription::cancel_transcription,
             commands::audio::get_audio_inputs,

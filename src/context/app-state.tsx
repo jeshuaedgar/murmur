@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { api } from "@/lib/api/tauri";
 import type { AppSettings } from "@/lib/types/settings";
@@ -14,6 +14,7 @@ import { useBrowserAudioInputs } from "@/context/hooks/use-browser-audio-inputs"
 import { useTranscriptionActions } from "@/context/hooks/use-transcription-actions";
 import type { AppStateValue } from "@/context/types/app-state";
 import { getErrorMessage, toastError, toastSuccess } from "@/lib/toast";
+import type { CleanupStrategy } from "@/features/transcription/cleanup/types";
 
 const AppStateContext = createContext<AppStateValue | null>(null);
 
@@ -26,13 +27,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     translate: false,
     autoCopy: false,
     startAtLogin: false,
+    liveMode: true,
     audioInputDeviceId: null,
+    cleanupEnabled: true,
+    liveCleanupEnabled: true,
+    liveCleanupMode: "rules",
+    finalizeCleanupMode: "rules",
+    cleanupLatencyBudgetMs: 200,
+    cleanupShowRawToggle: false,
+    cleanupBackend: "rules_only",
+    cleanupModelId: null,
   });
   const [transcript, setTranscript] = useState("");
+  const [rawTranscript, setRawTranscript] = useState("");
+  const [cleanupStrategy, setCleanupStrategy] = useState<CleanupStrategy>("raw");
   const [status, setStatus] = useState("idle");
   const [appDataDir, setAppDataDir] = useState("");
+  const [settingsFilePath, setSettingsFilePath] = useState("");
   const [isRecording, setIsRecording] = useState(false);
-  const [liveMode, setLiveMode] = useState(true);
   const [activeTranscriptionTaskId, setActiveTranscriptionTaskId] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<Map<string, DownloadProgressEvent>>(new Map());
   const [backendAudioInputs, setBackendAudioInputs] = useState<AudioInputDevice[]>([]);
@@ -68,10 +80,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       settingsRef,
       appDataDir,
       isRecording,
-      liveMode,
+      liveMode: settings.liveMode,
       setIsRecording,
       setStatus,
       setTranscript,
+      setRawTranscript,
+      setCleanupStrategy,
       setActiveTranscriptionTaskId,
       copyText,
       refreshBrowserAudioInputs,
@@ -82,14 +96,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setInstalled,
     setSettings,
     setAppDataDir,
+    setSettingsFilePath,
     setBackendAudioInputs,
     setDownloadProgress,
     setActiveTranscriptionTaskId,
     setStatus,
     setTranscript,
+    setRawTranscript,
+    setCleanupStrategy,
     refreshBrowserAudioInputs,
     copyText,
     autoCopyEnabledRef,
+    settingsRef,
     teardownRecordingResources,
   });
 
@@ -144,15 +162,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const setLiveMode = (value: SetStateAction<boolean>) => {
+    setSettings((prev) => {
+      const nextLiveMode = typeof value === "function" ? value(prev.liveMode) : value;
+      const nextSettings = { ...prev, liveMode: nextLiveMode };
+      void api.saveSettings(nextSettings).catch(() => undefined);
+      return nextSettings;
+    });
+  };
+
   const value: AppStateValue = {
     models,
     installed,
     settings,
     transcript,
+    rawTranscript,
+    cleanupStrategy,
     status,
     appDataDir,
+    settingsFilePath,
     isRecording,
-    liveMode,
+    liveMode: settings.liveMode,
     activeTranscriptionTaskId,
     downloadProgress,
     backendAudioInputs,
@@ -160,6 +190,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     installedById,
     setSettings,
     setTranscript,
+    setRawTranscript,
+    setCleanupStrategy,
     setLiveMode,
     setStatus,
     startRecording,

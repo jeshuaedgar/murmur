@@ -26,11 +26,23 @@ const mockState: AppStateValue = {
     translate: false,
     autoCopy: false,
     startAtLogin: false,
+    liveMode: true,
     audioInputDeviceId: null,
+    cleanupEnabled: true,
+    liveCleanupEnabled: true,
+    liveCleanupMode: "rules",
+    finalizeCleanupMode: "rules",
+    cleanupLatencyBudgetMs: 200,
+    cleanupShowRawToggle: false,
+    cleanupBackend: "rules_only",
+    cleanupModelId: null,
   },
   transcript: "",
+  rawTranscript: "",
+  cleanupStrategy: "raw",
   status: "idle",
   appDataDir: "/tmp",
+  settingsFilePath: "/tmp/settings.yaml",
   isRecording: false,
   liveMode: true,
   activeTranscriptionTaskId: null,
@@ -40,6 +52,8 @@ const mockState: AppStateValue = {
   installedById: new Map(),
   setSettings: vi.fn(),
   setTranscript: vi.fn(),
+  setRawTranscript: vi.fn(),
+  setCleanupStrategy: vi.fn(),
   setLiveMode: vi.fn(),
   setStatus: vi.fn(),
   startRecording: vi.fn(async () => {}),
@@ -75,11 +89,18 @@ describe("router integration smoke", () => {
 
   it("renders /models", async () => {
     await renderAt("/models");
-    await waitFor(() => expect(screen.getByText("Download once from Hugging Face, then run offline.")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Browse model families, install once, and keep transcription fully offline.")).toBeInTheDocument(),
+    );
   });
 
   it("renders /settings", async () => {
     await renderAt("/settings");
     await waitFor(() => expect(screen.getByText("Default model")).toBeInTheDocument());
+  });
+
+  it("renders /cleanup", async () => {
+    await renderAt("/cleanup");
+    await waitFor(() => expect(screen.getByText("Cleanup Pipeline")).toBeInTheDocument());
   });
 });

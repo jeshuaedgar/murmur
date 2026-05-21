@@ -7,7 +7,12 @@ import type {
   InstalledModel,
   ModelInfo,
 } from "../types/models";
-import type { TranscriptionOptions, TranscriptionResult } from "../types/transcription";
+import type {
+  CleanupTextOptions,
+  CleanupTextResult,
+  TranscriptionOptions,
+  TranscriptionResult,
+} from "../types/transcription";
 
 export const api = {
   listModels: () => invoke<ModelInfo[]>("list_models"),
@@ -43,6 +48,9 @@ export const api = {
       sampleRate,
       options,
     }),
+  cleanupText: (text: string, options: CleanupTextOptions) =>
+    invoke<CleanupTextResult>("cleanup_text", { text, options }),
   getAppDataDir: () => invoke<string>("get_app_data_dir"),
+  getSettingsFilePath: () => invoke<string>("get_settings_file_path"),
   getAudioInputs: () => invoke<AudioInputDevice[]>("get_audio_inputs"),
 };

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { useAppState } from "@/context/app-state";
 import { useModelConnectivity } from "@/features/models/hooks/use-model-connectivity";
 import { useSettingsPageLogic } from "@/features/settings/hooks/use-settings-page-logic";
@@ -29,6 +30,7 @@ export function SettingsPage() {
     browserAudioInputs,
     backendAudioInputs,
     appDataDir,
+    settingsFilePath,
     setSettings,
     saveSettings,
   } = useAppState();
@@ -40,8 +42,15 @@ export function SettingsPage() {
     onDefaultModelChange,
     onLanguageChange,
     onAudioInputChange,
+    onTranslateChange,
     onAutoCopyChange,
     onStartAtLoginChange,
+    onCleanupEnabledChange,
+    onLiveCleanupEnabledChange,
+    onLiveCleanupModeChange,
+    onFinalizeCleanupModeChange,
+    onCleanupLatencyBudgetMsChange,
+    onCleanupShowRawToggleChange,
     onSaveSettings,
   } = useSettingsPageLogic({
     models,
@@ -106,6 +115,7 @@ export function SettingsPage() {
             <Label htmlFor="language">Language</Label>
             <Input
               id="language"
+              placeholder="auto (or language code like en, fr, de)"
               value={settings.language}
               onChange={(event) => onLanguageChange(event.target.value)}
             />
@@ -149,9 +159,21 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Automation</CardTitle>
-          <CardDescription>Toggle transcript post-processing options.</CardDescription>
+          <CardDescription>Toggle transcript post-processing options and startup behavior.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
+          <div className="flex items-start justify-between gap-4 py-1">
+            <div className="space-y-1">
+              <Label htmlFor="translate">Translate to English</Label>
+              <p className="text-sm text-muted-foreground">When enabled, transcription output is translated to English.</p>
+            </div>
+            <Switch
+              id="translate"
+              checked={settings.translate}
+              onCheckedChange={onTranslateChange}
+            />
+          </div>
+          <Separator />
           <div className="flex items-start justify-between gap-4 py-1">
             <div className="space-y-1">
               <Label htmlFor="autocopy">Auto-copy transcript</Label>
@@ -162,6 +184,83 @@ export function SettingsPage() {
               checked={settings.autoCopy}
               onCheckedChange={onAutoCopyChange}
             />
+          </div>
+          <Separator />
+          <div className="flex items-start justify-between gap-4 py-1">
+            <div className="space-y-1">
+              <Label htmlFor="cleanup-enabled">Transcript cleanup</Label>
+              <p className="text-sm text-muted-foreground">Enable stop-word/filler cleanup and punctuation normalization.</p>
+            </div>
+            <Switch
+              id="cleanup-enabled"
+              checked={settings.cleanupEnabled}
+              onCheckedChange={onCleanupEnabledChange}
+            />
+          </div>
+          <Separator />
+          <div className="flex items-start justify-between gap-4 py-1">
+            <div className="space-y-1">
+              <Label htmlFor="live-cleanup-enabled">Live cleanup</Label>
+              <p className="text-sm text-muted-foreground">Apply lightweight rules while live transcription is running.</p>
+            </div>
+            <Switch
+              id="live-cleanup-enabled"
+              checked={settings.liveCleanupEnabled}
+              onCheckedChange={onLiveCleanupEnabledChange}
+            />
+          </div>
+          <Separator />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 py-1">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="live-cleanup-mode">Live cleanup mode</Label>
+              <Select value={settings.liveCleanupMode} onValueChange={onLiveCleanupModeChange}>
+                <SelectTrigger id="live-cleanup-mode" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">Off</SelectItem>
+                  <SelectItem value="rules">Rules only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="finalize-cleanup-mode">Finalize cleanup mode</Label>
+              <Select value={settings.finalizeCleanupMode} onValueChange={onFinalizeCleanupModeChange}>
+                <SelectTrigger id="finalize-cleanup-mode" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">Off</SelectItem>
+                  <SelectItem value="rules">Rules only</SelectItem>
+                  <SelectItem value="rules_plus_model">Rules + model pipeline</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Separator />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 py-1">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="cleanup-latency-budget-ms">Cleanup timeout budget (ms)</Label>
+              <Input
+                id="cleanup-latency-budget-ms"
+                type="number"
+                min={50}
+                max={2000}
+                value={settings.cleanupLatencyBudgetMs}
+                onChange={(event) => onCleanupLatencyBudgetMsChange(event.target.value)}
+              />
+            </div>
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="space-y-1">
+                <Label htmlFor="cleanup-show-raw-toggle">Show raw transcript toggle</Label>
+                <p className="text-sm text-muted-foreground">Allow switching between cleaned and raw transcript text.</p>
+              </div>
+              <Switch
+                id="cleanup-show-raw-toggle"
+                checked={settings.cleanupShowRawToggle}
+                onCheckedChange={onCleanupShowRawToggleChange}
+              />
+            </div>
           </div>
           <Separator />
           <div className="flex items-start justify-between gap-4 py-1">
@@ -197,6 +296,7 @@ export function SettingsPage() {
             onClick={() => void checkConnectivity()}
             disabled={isCheckingConnectivity}
           >
+            {isCheckingConnectivity ? <Spinner /> : null}
             {isCheckingConnectivity ? "Checking..." : "Check connectivity"}
           </Button>
         </CardFooter>
@@ -209,7 +309,10 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p>
-            App data: <code>{appDataDir}</code>
+            App data: <code className="break-all">{appDataDir}</code>
+          </p>
+          <p>
+            Settings file: <code className="break-all">{settingsFilePath || "~/.config/murmur/settings.yaml"}</code>
           </p>
         </CardContent>
         <CardFooter className="justify-end">
