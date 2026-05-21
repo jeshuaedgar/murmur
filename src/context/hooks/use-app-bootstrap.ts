@@ -11,6 +11,7 @@ import type {
 } from "@/lib/types/models";
 import type { TranscriptionResult } from "@/lib/types/transcription";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
+import { clearDownloadTask, mergePendingDownloadProgress } from "@/context/hooks/download-progress-state";
 import {
   getErrorMessage,
   toastError,
@@ -55,6 +56,7 @@ export function useAppBootstrap({
   const lastStartupErrorRef = useRef<string | null>(null);
   const downloadProgressFlushTimerRef = useRef<number | null>(null);
   const pendingDownloadProgressRef = useRef<Map<string, DownloadProgressEvent>>(new Map());
+  const terminalDownloadTaskIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (didInitRef.current) return;
@@ -125,6 +127,9 @@ export function useAppBootstrap({
 
       cleanup.push(
         await listen<DownloadProgressEvent>("model-download-progress", (event) => {
+          if (terminalDownloadTaskIdsRef.current.has(event.payload.taskId)) {
+            return;
+          }
           pendingDownloadProgressRef.current.set(event.payload.taskId, event.payload);
           if (downloadProgressFlushTimerRef.current !== null) {
             return;
@@ -132,24 +137,13 @@ export function useAppBootstrap({
           downloadProgressFlushTimerRef.current = window.setTimeout(() => {
             downloadProgressFlushTimerRef.current = null;
             setDownloadProgress((prev) => {
-              const next = new Map(prev);
+              const next = mergePendingDownloadProgress({
+                previousByTaskId: prev,
+                pendingEvents: pendingDownloadProgressRef.current.values(),
+                terminalTaskIds: terminalDownloadTaskIdsRef.current,
+              });
               for (const pendingEvent of pendingDownloadProgressRef.current.values()) {
-                const previous = next.get(pendingEvent.taskId);
-                const inferredPct =
-                  typeof pendingEvent.totalBytes === "number" && pendingEvent.totalBytes > 0
-                    ? (pendingEvent.downloadedBytes / pendingEvent.totalBytes) * 100
-                    : undefined;
-                const incomingPct =
-                  typeof pendingEvent.progressPct === "number" ? pendingEvent.progressPct : inferredPct;
-                const previousPct = previous?.progressPct;
-                const normalizedPct =
-                  typeof incomingPct === "number"
-                    ? Math.max(0, Math.min(100, Math.max(previousPct ?? 0, incomingPct)))
-                    : previousPct;
-                next.set(pendingEvent.taskId, {
-                  ...pendingEvent,
-                  progressPct: normalizedPct,
-                });
+                const normalizedPct = next.get(pendingEvent.taskId)?.progressPct;
                 toastModelDownloadProgress(pendingEvent.taskId, pendingEvent.modelId, normalizedPct);
               }
               pendingDownloadProgressRef.current.clear();
@@ -162,9 +156,12 @@ export function useAppBootstrap({
       cleanup.push(
         await listen<{ taskId: string; modelId: string }>("model-download-complete", async (event) => {
           setDownloadProgress((prev) => {
-            const next = new Map(prev);
-            next.delete(event.payload.taskId);
-            return next;
+            return clearDownloadTask({
+              previousByTaskId: prev,
+              pendingByTaskId: pendingDownloadProgressRef.current,
+              terminalTaskIds: terminalDownloadTaskIdsRef.current,
+              taskId: event.payload.taskId,
+            });
           });
           setInstalled(await api.getInstalledModels());
           setStatus(`model ${event.payload.modelId} installed`);
@@ -175,9 +172,12 @@ export function useAppBootstrap({
       cleanup.push(
         await listen<{ taskId: string; modelId: string; error: string }>("model-download-error", (event) => {
           setDownloadProgress((prev) => {
-            const next = new Map(prev);
-            next.delete(event.payload.taskId);
-            return next;
+            return clearDownloadTask({
+              previousByTaskId: prev,
+              pendingByTaskId: pendingDownloadProgressRef.current,
+              terminalTaskIds: terminalDownloadTaskIdsRef.current,
+              taskId: event.payload.taskId,
+            });
           });
           setStatus(`Download failed for ${event.payload.modelId}. ${getErrorMessage(event.payload.error, "Please try again.")}`);
           toastModelDownloadFailed(
@@ -257,6 +257,7 @@ export function useAppBootstrap({
       }
       downloadProgressFlushTimerRef.current = null;
       pendingDownloadProgressRef.current.clear();
+      terminalDownloadTaskIdsRef.current.clear();
       cleanup.forEach((unsub) => unsub());
       teardownRecordingResources();
     };

@@ -4,7 +4,7 @@ use crate::state::app_state::{AppState, DownloadTaskInfo};
 use serde::Serialize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -89,6 +89,10 @@ pub async fn download_model(
                 );
             }
         }
+
+        let state = app_handle.state::<AppState>();
+        let mut flags = state.download_flags.lock().await;
+        flags.remove(&task_id_for_task);
     });
 
     Ok(DownloadTaskInfo {

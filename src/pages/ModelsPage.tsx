@@ -127,7 +127,6 @@ export function ModelsPage() {
                 const progress = progressByModelId.get(model.id);
                 const {
                   progressValue,
-                  hasProgress,
                   isInstalled,
                   isDownloading,
                   actionLabel,
@@ -155,10 +154,10 @@ export function ModelsPage() {
                     </CardHeader>
 
                     <CardContent className="flex-1 space-y-2">
-                      {hasProgress && (
+                      {isDownloading && (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between gap-2 text-sm">
-                            <span>{isDownloading ? "Downloading model" : "Download complete"}</span>
+                            <span>Downloading model</span>
                             <span>{Math.round(progressValue)}%</span>
                           </div>
                           <Progress value={progressValue} aria-label={`Download progress for ${model.name}`} />
