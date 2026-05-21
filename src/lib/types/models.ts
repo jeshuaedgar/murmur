@@ -43,3 +43,12 @@ export type ConnectivityStatus = {
   huggingfaceReachable: boolean;
   detail?: string;
 };
+
+export type ModelCatalogCacheDiagnostics = {
+  status: string;
+  key: string;
+  schemaVersion: number;
+  ttlMs: number;
+  fetchedAt?: number | null;
+  ageMs?: number | null;
+};

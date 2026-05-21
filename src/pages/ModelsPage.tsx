@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,8 @@ import { useModelActions } from "@/features/models/lib/model-actions";
 import { groupModelsByLab } from "@/features/models/lib/lab-order";
 import { getModelCardState, getModelProgressByModelId } from "@/features/models/lib/model-view-state";
 import { ModelSectionCard } from "@/features/models/components/model-section-card";
+import { api } from "@/lib/api/tauri";
+import { toastSuccess } from "@/lib/toast";
 
 function formatBytes(bytes?: number) {
   if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
@@ -43,7 +45,13 @@ export function ModelsPage() {
   const { models, installedById, downloadProgress, downloadModel, deleteModel } = useAppState();
   const progressByModelId = useMemo(() => getModelProgressByModelId(downloadProgress), [downloadProgress]);
   const modelsByLab = useMemo(() => groupModelsByLab(models), [models]);
-  const { connectivityStatus, connectivityDetail, checkConnectivity } = useModelConnectivity();
+  const {
+    connectivityStatus,
+    connectivityDetail,
+    checkConnectivity,
+    cacheDiagnostics,
+    refreshCacheDiagnostics,
+  } = useModelConnectivity();
   const {
     pendingRemoveModelId,
     pendingModel,
@@ -67,6 +75,10 @@ export function ModelsPage() {
   const activeDownloads = Array.from(downloadProgress.values()).filter((entry) => (entry.progressPct ?? 0) < 100).length;
   const cleanupModels = models.filter((model) => model.lab === "Cleanup Models");
   const installedCleanupModels = cleanupModels.filter((model) => installedById.get(model.id)?.installed).length;
+
+  useEffect(() => {
+    void refreshCacheDiagnostics();
+  }, [refreshCacheDiagnostics]);
 
   return (
     <div className="space-y-8">
@@ -98,6 +110,38 @@ export function ModelsPage() {
               </Badge>
             )}
             {connectivityDetail ? <p className="text-sm text-muted-foreground">{connectivityDetail}</p> : null}
+          </div>
+          {cacheDiagnostics ? (
+            <p className="text-xs text-muted-foreground">
+              Cache: {cacheDiagnostics.status} | key {cacheDiagnostics.key} | ttl {Math.round(cacheDiagnostics.ttlMs / 60000)}m
+              {typeof cacheDiagnostics.ageMs === "number" ? ` | age ${Math.round(cacheDiagnostics.ageMs / 1000)}s` : ""}
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void api.invalidateModelCatalogCache().then(() => {
+                  toastSuccess("Model catalog cache cleared");
+                  void refreshCacheDiagnostics();
+                });
+              }}
+            >
+              Clear cache
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void api.listModels().then(() => {
+                  toastSuccess("Catalog refresh requested");
+                  void refreshCacheDiagnostics();
+                });
+              }}
+            >
+              Refresh catalog now
+            </Button>
           </div>
         </div>
       </header>

@@ -18,6 +18,11 @@ export const updateFinalizeCleanupMode = updateSetting("finalizeCleanupMode");
 export const updateCleanupLatencyBudgetMs = updateSetting("cleanupLatencyBudgetMs");
 export const updateCleanupShowRawToggle = updateSetting("cleanupShowRawToggle");
 export const updateCleanupBackend = updateSetting("cleanupBackend");
+export const updateHistoryRetentionIncludePinned = updateSetting("historyRetentionIncludePinned");
+export const updateHistoryRetentionDays: SettingsUpdater<number | null> = (value) => (prev) => ({
+  ...prev,
+  historyRetentionDays: value,
+});
 export const updateCleanupModelId: SettingsUpdater<string> = (value) => (prev) => ({
   ...prev,
   cleanupModelId: value || null,

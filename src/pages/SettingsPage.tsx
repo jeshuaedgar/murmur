@@ -51,6 +51,8 @@ export function SettingsPage() {
     onFinalizeCleanupModeChange,
     onCleanupLatencyBudgetMsChange,
     onCleanupShowRawToggleChange,
+    onHistoryRetentionDaysChange,
+    onHistoryRetentionIncludePinnedChange,
     onSaveSettings,
   } = useSettingsPageLogic({
     models,
@@ -172,6 +174,31 @@ export function SettingsPage() {
               checked={settings.translate}
               onCheckedChange={onTranslateChange}
             />
+          </div>
+          <Separator />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 py-1">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="history-retention-days">Auto-delete history older than N days</Label>
+              <Input
+                id="history-retention-days"
+                type="number"
+                min={1}
+                placeholder="Disabled"
+                value={settings.historyRetentionDays ?? ""}
+                onChange={(event) => onHistoryRetentionDaysChange(event.target.value)}
+              />
+            </div>
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="space-y-1">
+                <Label htmlFor="history-retention-include-pinned">Include pinned entries</Label>
+                <p className="text-sm text-muted-foreground">Apply retention policy to pinned history as well.</p>
+              </div>
+              <Switch
+                id="history-retention-include-pinned"
+                checked={settings.historyRetentionIncludePinned}
+                onCheckedChange={onHistoryRetentionIncludePinnedChange}
+              />
+            </div>
           </div>
           <Separator />
           <div className="flex items-start justify-between gap-4 py-1">

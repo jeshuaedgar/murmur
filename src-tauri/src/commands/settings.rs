@@ -64,6 +64,32 @@ fn parse_optional_string(
     }
 }
 
+fn parse_optional_u32(
+    value: Option<&serde_yaml::Value>,
+    key: &'static str,
+    invalid_keys: &mut Vec<&'static str>,
+) -> Option<u32> {
+    match value {
+        Some(serde_yaml::Value::Null) | None => None,
+        Some(serde_yaml::Value::Number(n)) => n.as_u64().and_then(|v| u32::try_from(v).ok()).or_else(|| {
+            invalid_keys.push(key);
+            None
+        }),
+        Some(serde_yaml::Value::String(v)) if v.trim().is_empty() => None,
+        Some(serde_yaml::Value::String(v)) => match v.parse::<u32>() {
+            Ok(parsed) => Some(parsed),
+            Err(_) => {
+                invalid_keys.push(key);
+                None
+            }
+        },
+        Some(_) => {
+            invalid_keys.push(key);
+            None
+        }
+    }
+}
+
 fn parse_u32(
     value: Option<&serde_yaml::Value>,
     key: &'static str,
@@ -192,6 +218,17 @@ fn validate_settings_value(value: &serde_yaml::Value) -> ValidatedSettings {
             "cleanupModelId",
             &mut invalid_keys,
         ),
+        history_retention_days: parse_optional_u32(
+            get("historyRetentionDays"),
+            "historyRetentionDays",
+            &mut invalid_keys,
+        ),
+        history_retention_include_pinned: parse_bool(
+            get("historyRetentionIncludePinned"),
+            "historyRetentionIncludePinned",
+            defaults.history_retention_include_pinned,
+            &mut invalid_keys,
+        ),
     };
 
     ValidatedSettings {
@@ -287,5 +324,39 @@ pub fn set_start_at_login(app: AppHandle, enabled: bool) -> Result<(), String> {
         autolaunch.enable().map_err(|e| e.to_string())
     } else {
         autolaunch.disable().map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn yaml_validation_accepts_expected_keys() {
+        let value: serde_yaml::Value = serde_yaml::from_str(
+            r#"
+defaultModelId: small
+language: auto
+translate: false
+autoCopy: true
+startAtLogin: false
+liveMode: true
+audioInputDeviceId: null
+cleanupEnabled: true
+liveCleanupEnabled: true
+liveCleanupMode: rules
+finalizeCleanupMode: rules
+cleanupLatencyBudgetMs: 200
+cleanupShowRawToggle: false
+cleanupBackend: rules_only
+cleanupModelId: null
+"#,
+        )
+        .expect("valid yaml");
+
+        let validated = validate_settings_value(&value);
+        assert!(validated.invalid_keys.is_empty());
+        assert_eq!(validated.settings.default_model_id, "small");
+        assert!(validated.settings.auto_copy);
     }
 }

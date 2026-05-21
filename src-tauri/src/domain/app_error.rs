@@ -77,6 +77,12 @@ impl From<serde_json::Error> for AppError {
     }
 }
 
+impl From<rusqlite::Error> for AppError {
+    fn from(value: rusqlite::Error) -> Self {
+        Self::Io(value.to_string())
+    }
+}
+
 impl From<AppError> for String {
     fn from(value: AppError) -> Self {
         serde_json::to_string(&value.payload()).unwrap_or_else(|_| value.to_string())

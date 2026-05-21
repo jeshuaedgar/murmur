@@ -1,19 +1,45 @@
 use crate::domain::app_error::AppError;
 use crate::domain::model_manifest::{InstalledModel, ModelInfo};
 use crate::services::app_paths;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
+use tauri_plugin_store::StoreExt;
 use tokio::sync::RwLock;
+
+const MODEL_CATALOG_CACHE_KEY: &str = "hf:model_catalog:v1";
+const MODEL_CATALOG_CACHE_SCHEMA_VERSION: u32 = 1;
+const MODEL_CATALOG_CACHE_TTL_MS: i64 = 6 * 60 * 60 * 1000;
+const MODEL_CATALOG_CACHE_STORE_PATH: &str = "cache.store";
 
 #[derive(Clone)]
 pub struct ModelManager {
     manifest: std::sync::Arc<RwLock<Vec<ModelInfo>>>,
+    diagnostics: std::sync::Arc<RwLock<ModelCatalogCacheDiagnostics>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelCatalogCacheDiagnostics {
+    pub status: String,
+    pub key: String,
+    pub schema_version: u32,
+    pub ttl_ms: i64,
+    pub fetched_at: Option<i64>,
+    pub age_ms: Option<i64>,
 }
 
 impl ModelManager {
     pub fn new() -> Self {
         Self {
             manifest: std::sync::Arc::new(RwLock::new(Vec::new())),
+            diagnostics: std::sync::Arc::new(RwLock::new(ModelCatalogCacheDiagnostics {
+                status: "unknown".to_string(),
+                key: MODEL_CATALOG_CACHE_KEY.to_string(),
+                schema_version: MODEL_CATALOG_CACHE_SCHEMA_VERSION,
+                ttl_ms: MODEL_CATALOG_CACHE_TTL_MS,
+                fetched_at: None,
+                age_ms: None,
+            })),
         }
     }
 
@@ -85,6 +111,25 @@ impl ModelManager {
         Ok(())
     }
 
+    pub async fn invalidate_catalog_cache(&self, app: &AppHandle) -> Result<(), AppError> {
+        let store = app
+            .store(MODEL_CATALOG_CACHE_STORE_PATH)
+            .map_err(|e| AppError::Io(format!("failed to open cache store: {e}")))?;
+        store.delete(MODEL_CATALOG_CACHE_KEY);
+        store
+            .save()
+            .map_err(|e| AppError::Io(format!("failed to save cache store: {e}")))?;
+
+        let mut manifest = self.manifest.write().await;
+        manifest.clear();
+        self.set_diagnostics("invalidated", None).await;
+        Ok(())
+    }
+
+    pub async fn cache_diagnostics(&self) -> ModelCatalogCacheDiagnostics {
+        self.diagnostics.read().await.clone()
+    }
+
     async fn ensure_manifest(&self, app: &AppHandle) -> Result<Vec<ModelInfo>, AppError> {
         {
             let manifest = self.manifest.read().await;
@@ -96,18 +141,48 @@ impl ModelManager {
     }
 
     async fn refresh_manifest(&self, app: &AppHandle) -> Result<Vec<ModelInfo>, AppError> {
-        let fetched = match fetch_models_from_huggingface().await {
+        let cache = read_catalog_cache(app).ok().flatten();
+
+        if let Some(cached) = cache.as_ref().filter(|c| c.is_fresh()) {
+            eprintln!("model catalog cache status=fresh");
+            self.set_diagnostics("fresh", Some(cached)).await;
+            let mut manifest = self.manifest.write().await;
+            *manifest = cached.payload.clone();
+            return Ok(cached.payload.clone());
+        }
+
+        match fetch_models_from_huggingface().await {
             Ok(models) => {
-                let _ = write_catalog_cache(app, &models);
-                models
+                let _ = write_catalog_cache(app, CatalogCacheEntry::new(models.clone()));
+                eprintln!("model catalog cache status=miss");
+                self.set_diagnostics("miss", None).await;
+                let mut manifest = self.manifest.write().await;
+                *manifest = models.clone();
+                Ok(models)
             }
             Err(network_error) => {
-                read_catalog_cache(app).map_err(|_| network_error)?
+                if should_use_stale_cache(cache.as_ref(), true) {
+                    let Some(stale) = cache else {
+                        return Err(network_error);
+                    };
+                    eprintln!("model catalog cache status=stale-fallback");
+                    self.set_diagnostics("stale", Some(&stale)).await;
+                    let mut manifest = self.manifest.write().await;
+                    *manifest = stale.payload.clone();
+                    return Ok(stale.payload);
+                }
+                self.set_diagnostics("network-error", None).await;
+                Err(network_error)
             }
-        };
-        let mut manifest = self.manifest.write().await;
-        *manifest = fetched.clone();
-        Ok(fetched)
+        }
+    }
+
+    async fn set_diagnostics(&self, status: &str, cache: Option<&CatalogCacheEntry>) {
+        let now = now_ms();
+        let mut diagnostics = self.diagnostics.write().await;
+        diagnostics.status = status.to_string();
+        diagnostics.fetched_at = cache.map(|entry| entry.fetched_at);
+        diagnostics.age_ms = cache.map(|entry| now - entry.fetched_at);
     }
 }
 
@@ -121,6 +196,42 @@ struct HfModelFile {
 struct HfModelResponse {
     description: Option<String>,
     siblings: Vec<HfModelFile>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CatalogCacheEntry {
+    payload: Vec<ModelInfo>,
+    fetched_at: i64,
+    ttl_ms: i64,
+    etag: Option<String>,
+    schema_version: u32,
+}
+
+impl CatalogCacheEntry {
+    fn new(payload: Vec<ModelInfo>) -> Self {
+        Self {
+            payload,
+            fetched_at: now_ms(),
+            ttl_ms: MODEL_CATALOG_CACHE_TTL_MS,
+            etag: None,
+            schema_version: MODEL_CATALOG_CACHE_SCHEMA_VERSION,
+        }
+    }
+
+    fn is_fresh(&self) -> bool {
+        self.schema_version == MODEL_CATALOG_CACHE_SCHEMA_VERSION
+            && !self.payload.is_empty()
+            && now_ms() - self.fetched_at <= self.ttl_ms
+    }
+}
+
+fn should_use_stale_cache(cache: Option<&CatalogCacheEntry>, network_failed: bool) -> bool {
+    network_failed && cache.is_some_and(|entry| !entry.payload.is_empty())
+}
+
+fn now_ms() -> i64 {
+    chrono::Utc::now().timestamp_millis()
 }
 
 #[derive(Clone, Copy)]
@@ -244,7 +355,11 @@ async fn fetch_models_from_huggingface() -> Result<Vec<ModelInfo>, AppError> {
                 .clone()
                 .unwrap_or_else(|| describe_model(file.size));
 
-            let stable_id = if source.lab == "OpenAI Whisper" { id.clone() } else { format!("{}:{}", source.lab.to_lowercase().replace(' ', "-"), id) };
+            let stable_id = if source.lab == "OpenAI Whisper" {
+                id.clone()
+            } else {
+                format!("{}:{}", source.lab.to_lowercase().replace(' ', "-"), id)
+            };
 
             models.push(ModelInfo {
                 id: stable_id,
@@ -377,7 +492,11 @@ fn pick_recommended_model_index(models: &[ModelInfo]) -> Option<usize> {
     models
         .iter()
         .enumerate()
-        .filter_map(|(idx, model)| model.size_bytes.map(|size| (idx, ((size as f64).ln() - target).abs())))
+        .filter_map(|(idx, model)| {
+            model
+                .size_bytes
+                .map(|size| (idx, ((size as f64).ln() - target).abs()))
+        })
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(idx, _)| idx)
 }
@@ -409,26 +528,75 @@ fn lab_sort_key(lab: &str) -> u8 {
     }
 }
 
-fn write_catalog_cache(app: &AppHandle, models: &[ModelInfo]) -> Result<(), AppError> {
-    let path = app_paths::model_catalog_cache_path(app)?;
-    let json = serde_json::to_string_pretty(models)?;
-    std::fs::write(path, json)?;
+fn write_catalog_cache(app: &AppHandle, cache: CatalogCacheEntry) -> Result<(), AppError> {
+    let store = app
+        .store(MODEL_CATALOG_CACHE_STORE_PATH)
+        .map_err(|e| AppError::Io(format!("failed to open cache store: {e}")))?;
+
+    store.set(
+        MODEL_CATALOG_CACHE_KEY,
+        serde_json::to_value(cache)
+            .map_err(|e| AppError::InvalidInput(format!("invalid cache payload: {e}")))?,
+    );
+    store
+        .save()
+        .map_err(|e| AppError::Io(format!("failed to save cache store: {e}")))?;
     Ok(())
 }
 
-fn read_catalog_cache(app: &AppHandle) -> Result<Vec<ModelInfo>, AppError> {
-    let path = app_paths::model_catalog_cache_path(app)?;
-    if !path.exists() {
-        return Err(AppError::NotFound(
-            "no cached model catalog available".to_string(),
-        ));
+fn read_catalog_cache(app: &AppHandle) -> Result<Option<CatalogCacheEntry>, AppError> {
+    let store = app
+        .store(MODEL_CATALOG_CACHE_STORE_PATH)
+        .map_err(|e| AppError::Io(format!("failed to open cache store: {e}")))?;
+
+    let value = match store.get(MODEL_CATALOG_CACHE_KEY) {
+        Some(value) => value,
+        None => return Ok(None),
+    };
+
+    let cache: CatalogCacheEntry = serde_json::from_value(value)
+        .map_err(|e| AppError::InvalidInput(format!("invalid cache entry: {e}")))?;
+
+    if cache.schema_version != MODEL_CATALOG_CACHE_SCHEMA_VERSION || cache.payload.is_empty() {
+        return Ok(None);
     }
-    let json = std::fs::read_to_string(path)?;
-    let models: Vec<ModelInfo> = serde_json::from_str(&json)?;
-    if models.is_empty() {
-        return Err(AppError::NotFound(
-            "cached model catalog is empty".to_string(),
-        ));
+
+    Ok(Some(cache))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cache_freshness_checks_expiry() {
+        let fresh = CatalogCacheEntry {
+            payload: vec![ModelInfo {
+                id: "small".to_string(),
+                lab: "OpenAI Whisper".to_string(),
+                name: "Small".to_string(),
+                description: "x".to_string(),
+                url: "https://example.com".to_string(),
+                file_name: "ggml-small.bin".to_string(),
+                recommended: false,
+                fastest: false,
+                best_quality: false,
+                size_bytes: Some(10),
+            }],
+            fetched_at: now_ms(),
+            ttl_ms: 60_000,
+            etag: None,
+            schema_version: MODEL_CATALOG_CACHE_SCHEMA_VERSION,
+        };
+
+        assert!(fresh.is_fresh());
+
+        let stale = CatalogCacheEntry {
+            fetched_at: now_ms() - 120_000,
+            ..fresh
+        };
+        assert!(!stale.is_fresh());
+        assert!(should_use_stale_cache(Some(&stale), true));
+        assert!(!should_use_stale_cache(Some(&stale), false));
     }
-    Ok(models)
 }

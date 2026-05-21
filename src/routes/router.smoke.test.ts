@@ -9,6 +9,7 @@ describe("router smoke", () => {
     expect(fullPaths).toContain("/home");
     expect(fullPaths).toContain("/models");
     expect(fullPaths).toContain("/cleanup");
+    expect(fullPaths).toContain("/history");
     expect(fullPaths).toContain("/settings");
   });
 });

@@ -36,11 +36,3 @@ pub fn legacy_settings_path(app: &AppHandle) -> Result<PathBuf, AppError> {
     dir.push("settings.json");
     Ok(dir)
 }
-
-pub fn model_catalog_cache_path(app: &AppHandle) -> Result<PathBuf, AppError> {
-    let mut dir = app_data_dir(app)?;
-    dir.push("cache");
-    std::fs::create_dir_all(&dir)?;
-    dir.push("whisper-model-catalog.json");
-    Ok(dir)
-}

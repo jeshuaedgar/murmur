@@ -37,6 +37,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     cleanupShowRawToggle: false,
     cleanupBackend: "rules_only",
     cleanupModelId: null,
+    historyRetentionDays: null,
+    historyRetentionIncludePinned: false,
   });
   const [transcript, setTranscript] = useState("");
   const [rawTranscript, setRawTranscript] = useState("");

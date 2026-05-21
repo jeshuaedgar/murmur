@@ -5,7 +5,7 @@ import { BaseDirectory, mkdir, writeFile } from "@tauri-apps/plugin-fs";
 import { api } from "@/lib/api/tauri";
 import type { AppSettings } from "@/lib/types/settings";
 import { requireTauri } from "@/lib/runtime/tauri";
-import { toastInfo } from "@/lib/toast";
+import { toastInfo, toastWarning } from "@/lib/toast";
 import { runCleanupPipeline, runLiveCleanup } from "@/features/transcription/cleanup/pipeline";
 import type { CleanupStrategy } from "@/features/transcription/cleanup/types";
 
@@ -208,6 +208,7 @@ export function useTranscriptionActions({
         return `${current.trimEnd()} ${normalized}`;
       });
       setCleanupStrategy(cleanup.strategy);
+      let audioPath: string | null = null;
       if (cleanup.cleaned.length > 0) {
         setTranscript((current) => {
           if (!current.trim()) return cleanup.cleaned;
@@ -222,15 +223,32 @@ export function useTranscriptionActions({
         const stamp = Date.now();
         const fileName = `recordings/recording-${stamp}.wav`;
         await writeFile(fileName, wav, { baseDir: BaseDirectory.AppData });
+        audioPath = appDataDir ? `${appDataDir}/${fileName}` : fileName;
         if (appDataDir) {
           setStatus(`done (saved: ${appDataDir}/${fileName})`);
-          return;
+        } else {
+          setStatus("done");
         }
       } catch {
         // no-op: live/local transcription should work even without recording directory permissions
+        setStatus("done");
       }
 
-      setStatus("done");
+      try {
+        await api.saveTranscription({
+          sourceType: "recording",
+          modelId: settings.defaultModelId,
+          language: result.language ?? null,
+          translated: settings.translate,
+          rawText: cleanup.raw,
+          cleanedText: cleanup.cleaned,
+          cleanupStrategy: cleanup.strategy,
+          durationMs: result.durationMs,
+          audioPath,
+        });
+      } catch {
+        toastWarning("History persistence skipped", "Transcript saved in UI, but not written to history.");
+      }
     } finally {
       setIsRecording(false);
       processorRef.current = null;

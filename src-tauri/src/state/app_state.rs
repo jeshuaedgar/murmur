@@ -1,6 +1,7 @@
 use crate::services::model_manager::ModelManager;
 use crate::services::cleanup_service::CleanupService;
 use crate::services::whisper_service::WhisperService;
+use crate::services::transcription_store::TranscriptionStore;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -25,6 +26,8 @@ pub struct AppSettings {
     pub cleanup_show_raw_toggle: bool,
     pub cleanup_backend: String,
     pub cleanup_model_id: Option<String>,
+    pub history_retention_days: Option<u32>,
+    pub history_retention_include_pinned: bool,
 }
 
 impl Default for AppSettings {
@@ -45,6 +48,8 @@ impl Default for AppSettings {
             cleanup_show_raw_toggle: false,
             cleanup_backend: "rules_only".to_string(),
             cleanup_model_id: None,
+            history_retention_days: None,
+            history_retention_include_pinned: false,
         }
     }
 }
@@ -59,6 +64,7 @@ pub struct DownloadTaskInfo {
 
 pub struct AppState {
     pub model_manager: ModelManager,
+    pub transcription_store: TranscriptionStore,
     pub whisper_service: Arc<WhisperService>,
     pub cleanup_service: Arc<CleanupService>,
     pub download_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
@@ -69,6 +75,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             model_manager: ModelManager::new(),
+            transcription_store: TranscriptionStore::new(),
             whisper_service: Arc::new(WhisperService::new()),
             cleanup_service: Arc::new(CleanupService::new()),
             download_flags: Mutex::new(HashMap::new()),

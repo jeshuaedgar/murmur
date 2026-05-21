@@ -2,18 +2,32 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api/tauri";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
 import { getErrorMessage, toastError, toastInfo, toastWarning } from "@/lib/toast";
+import type { ModelCatalogCacheDiagnostics } from "@/lib/types/models";
 
 export type ModelConnectivityState = {
   connectivityStatus: "unknown" | "online" | "offline";
   connectivityDetail: string;
+  cacheDiagnostics: ModelCatalogCacheDiagnostics | null;
   isCheckingConnectivity: boolean;
   checkConnectivity: () => Promise<boolean>;
+  refreshCacheDiagnostics: () => Promise<void>;
 };
 
 export function useModelConnectivity(): ModelConnectivityState {
   const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(false);
   const [connectivityStatus, setConnectivityStatus] = useState<"unknown" | "online" | "offline">("unknown");
   const [connectivityDetail, setConnectivityDetail] = useState("");
+  const [cacheDiagnostics, setCacheDiagnostics] = useState<ModelCatalogCacheDiagnostics | null>(null);
+
+  const refreshCacheDiagnostics = useCallback(async () => {
+    if (!isTauriRuntime) return;
+    try {
+      const diagnostics = await api.getModelCatalogCacheDiagnostics();
+      setCacheDiagnostics(diagnostics);
+    } catch {
+      setCacheDiagnostics(null);
+    }
+  }, []);
 
   useEffect(() => {
     const markOffline = () => {
@@ -78,7 +92,9 @@ export function useModelConnectivity(): ModelConnectivityState {
   return {
     connectivityStatus,
     connectivityDetail,
+    cacheDiagnostics,
     isCheckingConnectivity,
     checkConnectivity,
+    refreshCacheDiagnostics,
   };
 }

@@ -36,6 +36,8 @@ const mockState: AppStateValue = {
     cleanupShowRawToggle: false,
     cleanupBackend: "rules_only",
     cleanupModelId: null,
+    historyRetentionDays: null,
+    historyRetentionIncludePinned: false,
   },
   transcript: "",
   rawTranscript: "",

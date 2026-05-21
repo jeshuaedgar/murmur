@@ -1,5 +1,6 @@
 use crate::domain::app_error::AppError;
 use crate::domain::model_manifest::{InstalledModel, ModelInfo};
+use crate::services::model_manager::ModelCatalogCacheDiagnostics;
 use crate::state::app_state::{AppState, DownloadTaskInfo};
 use serde::Serialize;
 use std::sync::Arc;
@@ -145,4 +146,23 @@ pub async fn check_huggingface_connectivity(
             detail: Some(error.to_string()),
         }),
     }
+}
+
+#[tauri::command]
+pub async fn invalidate_model_catalog_cache(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .model_manager
+        .invalidate_catalog_cache(&app)
+        .await
+        .map_err(String::from)
+}
+
+#[tauri::command]
+pub async fn get_model_catalog_cache_diagnostics(
+    state: State<'_, AppState>,
+) -> Result<ModelCatalogCacheDiagnostics, String> {
+    Ok(state.model_manager.cache_diagnostics().await)
 }

@@ -14,4 +14,6 @@ export type AppSettings = {
   cleanupShowRawToggle: boolean;
   cleanupBackend: "rules_only" | "local_model";
   cleanupModelId?: string | null;
+  historyRetentionDays?: number | null;
+  historyRetentionIncludePinned: boolean;
 };

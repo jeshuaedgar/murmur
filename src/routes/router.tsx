@@ -10,6 +10,7 @@ import { HomePage } from "@/pages/HomePage";
 import { ModelsPage } from "@/pages/ModelsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { CleanupPage } from "@/pages/CleanupPage";
+import { HistoryPage } from "@/pages/HistoryPage";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -49,7 +50,13 @@ const cleanupRoute = createRoute({
   component: CleanupPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, homeRoute, modelsRoute, settingsRoute, cleanupRoute]);
+const historyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/history",
+  component: HistoryPage,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, homeRoute, modelsRoute, settingsRoute, cleanupRoute, historyRoute]);
 
 export function createAppRouter() {
   return createRouter({ routeTree });

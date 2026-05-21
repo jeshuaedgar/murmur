@@ -5,6 +5,7 @@ import type {
   ConnectivityStatus,
   DownloadTaskInfo,
   InstalledModel,
+  ModelCatalogCacheDiagnostics,
   ModelInfo,
 } from "../types/models";
 import type {
@@ -13,6 +14,15 @@ import type {
   TranscriptionOptions,
   TranscriptionResult,
 } from "../types/transcription";
+import type {
+  ListTranscriptionsInput,
+  ImportTranscriptionsReport,
+  SaveTranscriptionInput,
+  ExportBundleZipResult,
+  TranscriptionHistoryStats,
+  TranscriptionRecord,
+  UpdateTranscriptionInput,
+} from "../types/history";
 
 export const api = {
   listModels: () => invoke<ModelInfo[]>("list_models"),
@@ -21,6 +31,9 @@ export const api = {
     invoke<DownloadTaskInfo>("download_model", { modelId }),
   checkHuggingFaceConnectivity: () =>
     invoke<ConnectivityStatus>("check_huggingface_connectivity"),
+  invalidateModelCatalogCache: () => invoke<void>("invalidate_model_catalog_cache"),
+  getModelCatalogCacheDiagnostics: () =>
+    invoke<ModelCatalogCacheDiagnostics>("get_model_catalog_cache_diagnostics"),
   cancelDownload: (taskId: string) => invoke<void>("cancel_download", { taskId }),
   deleteModel: (modelId: string) => invoke<void>("delete_model", { modelId }),
   getSettings: () => invoke<AppSettings>("get_settings"),
@@ -53,4 +66,28 @@ export const api = {
   getAppDataDir: () => invoke<string>("get_app_data_dir"),
   getSettingsFilePath: () => invoke<string>("get_settings_file_path"),
   getAudioInputs: () => invoke<AudioInputDevice[]>("get_audio_inputs"),
+  saveTranscription: (entry: SaveTranscriptionInput) =>
+    invoke<TranscriptionRecord>("save_transcription", { entry }),
+  listTranscriptions: (params?: ListTranscriptionsInput) =>
+    invoke<TranscriptionRecord[]>("list_transcriptions", { params }),
+  getTranscription: (id: string) =>
+    invoke<TranscriptionRecord>("get_transcription", { id }),
+  updateTranscription: (id: string, patch: UpdateTranscriptionInput) =>
+    invoke<TranscriptionRecord>("update_transcription", { id, patch }),
+  deleteTranscription: (id: string, hard = false) =>
+    invoke<void>("delete_transcription", { id, hard }),
+  restoreTranscription: (id: string) =>
+    invoke<void>("restore_transcription", { id }),
+  exportTranscriptions: (includeDeleted = true) =>
+    invoke<string>("export_transcriptions", { includeDeleted }),
+  exportTranscriptionsCsv: (includeDeleted = true) =>
+    invoke<string>("export_transcriptions_csv", { includeDeleted }),
+  exportTranscriptionsBundleZip: (includeDeleted = true) =>
+    invoke<ExportBundleZipResult>("export_transcriptions_bundle_zip", { includeDeleted }),
+  importTranscriptions: (payload: string) =>
+    invoke<ImportTranscriptionsReport>("import_transcriptions", { payload }),
+  getTranscriptionHistoryStats: () =>
+    invoke<TranscriptionHistoryStats>("get_transcription_history_stats"),
+  applyHistoryRetention: (days: number, includePinned = false) =>
+    invoke<number>("apply_history_retention", { days, includePinned }),
 };

@@ -74,6 +74,7 @@ export function useAppBootstrap({
 
     let mounted = true;
     const cleanup: Array<() => void> = [];
+    let catalogRefreshTimer: number | null = null;
 
     const init = async () => {
       if (!isTauriRuntime) {
@@ -114,6 +115,13 @@ export function useAppBootstrap({
       setSettingsFilePath(settingsFilePath);
       setBackendAudioInputs(audioInputs);
 
+      if (appSettings.historyRetentionDays && appSettings.historyRetentionDays > 0) {
+        void api.applyHistoryRetention(
+          appSettings.historyRetentionDays,
+          appSettings.historyRetentionIncludePinned,
+        );
+      }
+
       if (shouldSwitchDefault) {
         setStatus(`Default model switched to ${fallbackInstalled!.id}.`);
         toastSuccess("Default model updated", `Using installed model: ${fallbackInstalled!.id}`);
@@ -137,6 +145,13 @@ export function useAppBootstrap({
       }
 
       await refreshBrowserAudioInputs();
+
+      const refreshCatalog = () => {
+        void api.listModels().catch(() => undefined);
+      };
+      catalogRefreshTimer = window.setInterval(refreshCatalog, 30 * 60 * 1000);
+      window.addEventListener("online", refreshCatalog);
+      cleanup.push(() => window.removeEventListener("online", refreshCatalog));
 
       cleanup.push(
         await listen<DownloadProgressEvent>("model-download-progress", (event) => {
@@ -213,7 +228,7 @@ export function useAppBootstrap({
       );
 
       cleanup.push(
-        await listen<{ taskId: string; result: TranscriptionResult }>("transcription-complete", (event) => {
+        await listen<{ taskId: string; result: TranscriptionResult; sourcePath?: string }>("transcription-complete", (event) => {
           setActiveTranscriptionTaskId((current) => {
             if (current !== event.payload.taskId) return current;
             void (async () => {
@@ -228,6 +243,21 @@ export function useAppBootstrap({
               setTranscript(nextText);
               if (autoCopyEnabledRef.current && nextText) {
                 await copyText(nextText);
+              }
+              try {
+                await api.saveTranscription({
+                  sourceType: "file",
+                  modelId: settingsRef.current.defaultModelId,
+                  language: event.payload.result.language ?? null,
+                  translated: settingsRef.current.translate,
+                  rawText: cleanup.raw,
+                  cleanedText: cleanup.cleaned,
+                  cleanupStrategy: cleanup.strategy,
+                  durationMs: event.payload.result.durationMs,
+                  audioPath: event.payload.sourcePath ?? null,
+                });
+              } catch {
+                // Preserve current UX if history persistence fails.
               }
               setStatus("done");
               toastSuccess("Transcription complete");
@@ -276,6 +306,9 @@ export function useAppBootstrap({
       mounted = false;
       if (downloadProgressFlushTimerRef.current !== null) {
         window.clearTimeout(downloadProgressFlushTimerRef.current);
+      }
+      if (catalogRefreshTimer !== null) {
+        window.clearInterval(catalogRefreshTimer);
       }
       downloadProgressFlushTimerRef.current = null;
       pendingDownloadProgressRef.current.clear();

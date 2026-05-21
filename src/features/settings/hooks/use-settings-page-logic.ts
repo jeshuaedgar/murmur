@@ -13,6 +13,8 @@ import {
   updateLanguage,
   updateLiveCleanupEnabled,
   updateLiveCleanupMode,
+  updateHistoryRetentionDays,
+  updateHistoryRetentionIncludePinned,
   updateStartAtLogin,
   updateTranslate,
 } from "@/features/settings/lib/settings-updaters";
@@ -157,6 +159,14 @@ export function useSettingsPageLogic({
   const onSaveSettings = useCallback(async () => {
     await saveSettings().catch(() => undefined);
   }, [saveSettings]);
+  const onHistoryRetentionDaysChange = useCallback(
+    (value: string) => setSettings(updateHistoryRetentionDays(value.trim() ? Number(value) || null : null)),
+    [setSettings],
+  );
+  const onHistoryRetentionIncludePinnedChange = useCallback(
+    (checked: boolean) => setSettings(updateHistoryRetentionIncludePinned(checked)),
+    [setSettings],
+  );
 
   return {
     modelOptionsByLab,
@@ -175,6 +185,8 @@ export function useSettingsPageLogic({
     onFinalizeCleanupModeChange,
     onCleanupLatencyBudgetMsChange,
     onCleanupShowRawToggleChange,
+    onHistoryRetentionDaysChange,
+    onHistoryRetentionIncludePinnedChange,
     onSaveSettings,
   };
 }

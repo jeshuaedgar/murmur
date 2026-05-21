@@ -151,6 +151,7 @@ pub async fn start_transcription_file(
     let state_ref = state.inner().model_manager.clone();
     let whisper_service = state.inner().whisper_service.clone();
     let task_id_for_task = task_id.clone();
+    let source_path_for_task = path.clone();
     tauri::async_runtime::spawn(async move {
         let _ = app_handle.emit(
             "transcription-progress",
@@ -235,7 +236,7 @@ pub async fn start_transcription_file(
             Ok(result) => {
                 let _ = app_handle.emit(
                     "transcription-complete",
-                    serde_json::json!({ "taskId": task_id_for_task, "result": result }),
+                    serde_json::json!({ "taskId": task_id_for_task, "result": result, "sourcePath": source_path_for_task }),
                 );
             }
             Err(err) => {
