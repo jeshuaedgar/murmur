@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Mic2, Save, SlidersHorizontal } from "lucide-react";
+import { Mic2, Save, Settings2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,14 +28,14 @@ export function SettingsPage() {
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <h1 className="display-title inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <SlidersHorizontal className="size-5" />
+        <h1 className="inline-flex items-center gap-2">
+          <Settings2 />
           Preferences
         </h1>
-        <p className="text-sm">Configure model, language, and capture behavior.</p>
+        <p>Configure model, language, and capture behavior.</p>
       </header>
 
-      <Card className="island-shell">
+      <Card>
         <CardHeader>
           <CardTitle>General</CardTitle>
           <CardDescription>Default model and language settings.</CardDescription>
@@ -73,10 +73,10 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="island-shell">
+      <Card>
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
-            <Mic2 className="size-4" />
+            <Mic2 />
             Audio Input
           </CardTitle>
           <CardDescription>Select the preferred capture device.</CardDescription>
@@ -102,13 +102,13 @@ export function SettingsPage() {
               </SelectContent>
             </Select>
           </div>
-          <p className="text-sm">
+          <p>
             Detected by browser: {browserAudioInputs.length} • Detected by backend: {backendAudioInputs.length}
           </p>
         </CardContent>
       </Card>
 
-      <Card className="island-shell">
+      <Card>
         <CardHeader>
           <CardTitle>Automation</CardTitle>
           <CardDescription>Toggle transcript post-processing options.</CardDescription>
@@ -134,17 +134,17 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card className="island-shell">
+      <Card>
         <CardHeader>
           <CardTitle>Storage</CardTitle>
           <CardDescription>Review the active app data directory.</CardDescription>
         </CardHeader>
         <CardFooter className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm">
+          <p>
             App data: <code>{appDataDir}</code>
           </p>
           <Button onClick={() => void saveSettings().catch(() => undefined)}>
-            <Save className="size-4" />
+            <Save />
             Save settings
           </Button>
         </CardFooter>

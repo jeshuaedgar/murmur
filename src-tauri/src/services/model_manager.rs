@@ -74,6 +74,17 @@ impl ModelManager {
         Ok(())
     }
 
+    pub async fn check_huggingface_connectivity(&self) -> Result<(), AppError> {
+        const HF_PING_URL: &str = "https://huggingface.co/";
+        reqwest::Client::new()
+            .head(HF_PING_URL)
+            .timeout(std::time::Duration::from_secs(4))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
     async fn ensure_manifest(&self, app: &AppHandle) -> Result<Vec<ModelInfo>, AppError> {
         {
             let manifest = self.manifest.read().await;

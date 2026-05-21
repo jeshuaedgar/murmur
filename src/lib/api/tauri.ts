@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { AppSettings } from "../types/settings";
 import type {
   AudioInputDevice,
+  ConnectivityStatus,
   DownloadTaskInfo,
   InstalledModel,
   ModelInfo,
@@ -13,6 +14,8 @@ export const api = {
   getInstalledModels: () => invoke<InstalledModel[]>("get_installed_models"),
   downloadModel: (modelId: string) =>
     invoke<DownloadTaskInfo>("download_model", { modelId }),
+  checkHuggingFaceConnectivity: () =>
+    invoke<ConnectivityStatus>("check_huggingface_connectivity"),
   cancelDownload: (taskId: string) => invoke<void>("cancel_download", { taskId }),
   deleteModel: (modelId: string) => invoke<void>("delete_model", { modelId }),
   getSettings: () => invoke<AppSettings>("get_settings"),

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AudioLines, CircleX, Copy, Eraser, FileAudio2, Mic, Square } from "lucide-react";
+import { CircleX, Copy, Eraser, FileAudio2, House, Mic, Square } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -38,7 +38,7 @@ export function HomePage() {
           {isRecording && <Badge variant="outline">Recording</Badge>}
         </div>
         <h1 className="inline-flex items-center gap-2">
-          <AudioLines className="size-5" />
+          <House />
           Transcription Workspace
         </h1>
       </header>
@@ -60,12 +60,12 @@ export function HomePage() {
             >
               {isRecording ? (
                 <>
-                  <Square className="size-4" />
+                  <Square />
                   Stop & Transcribe
                 </>
               ) : (
                 <>
-                  <Mic className="size-4" />
+                  <Mic />
                   Start Recording
                 </>
               )}
@@ -81,7 +81,7 @@ export function HomePage() {
                 })
               }
             >
-              <FileAudio2 className="size-4" />
+              <FileAudio2 />
               Import WAV
             </Button>
 
@@ -95,7 +95,7 @@ export function HomePage() {
                   })
                 }
               >
-                <CircleX className="size-4" />
+                <CircleX />
                 Cancel Transcription
               </Button>
             )}
@@ -121,11 +121,11 @@ export function HomePage() {
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => void copyText(transcript)}>
-              <Copy className="size-4" />
+              <Copy />
               Copy
             </Button>
             <Button variant="secondary" onClick={() => setTranscript("")}>
-              <Eraser className="size-4" />
+              <Eraser />
               Clear
             </Button>
           </div>

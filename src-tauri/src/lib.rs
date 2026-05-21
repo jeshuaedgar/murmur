@@ -19,6 +19,7 @@ pub fn run() {
             commands::models::download_model,
             commands::models::cancel_download,
             commands::models::delete_model,
+            commands::models::check_huggingface_connectivity,
             commands::settings::get_settings,
             commands::settings::save_settings,
             commands::settings::get_app_data_dir,

@@ -36,3 +36,9 @@ export type AudioInputDevice = {
   label: string;
   isDefault: boolean;
 };
+
+export type ConnectivityStatus = {
+  online: boolean;
+  huggingfaceReachable: boolean;
+  detail?: string;
+};

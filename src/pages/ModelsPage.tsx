@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,15 +24,43 @@ import {
 } from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
 import { useAppState } from "@/context/app-state";
+import { api } from "@/lib/api/tauri";
+import { getErrorMessage } from "@/lib/toast";
+import { isTauriRuntime } from "@/lib/runtime/tauri";
 
 export function ModelsPage() {
   const { models, installedById, downloadProgress, downloadModel, deleteModel } = useAppState();
   const [pendingRemoveModelId, setPendingRemoveModelId] = useState<string | null>(null);
+  const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(false);
+  const [connectivityStatus, setConnectivityStatus] = useState<"unknown" | "online" | "offline">("unknown");
+  const [connectivityDetail, setConnectivityDetail] = useState("");
 
   const pendingModel = useMemo(
     () => models.find((model) => model.id === pendingRemoveModelId) ?? null,
     [models, pendingRemoveModelId],
   );
+
+  useEffect(() => {
+    const markOffline = () => {
+      setConnectivityStatus("offline");
+      setConnectivityDetail("No internet connection detected.");
+    };
+    const markUnknown = () => {
+      setConnectivityStatus("unknown");
+      setConnectivityDetail("");
+    };
+
+    if (!navigator.onLine) {
+      markOffline();
+    }
+
+    window.addEventListener("offline", markOffline);
+    window.addEventListener("online", markUnknown);
+    return () => {
+      window.removeEventListener("offline", markOffline);
+      window.removeEventListener("online", markUnknown);
+    };
+  }, []);
 
   async function confirmRemove() {
     if (!pendingRemoveModelId) {
@@ -42,14 +70,62 @@ export function ModelsPage() {
     setPendingRemoveModelId(null);
   }
 
+  async function checkConnectivity() {
+    setIsCheckingConnectivity(true);
+    try {
+      if (!navigator.onLine) {
+        setConnectivityStatus("offline");
+        setConnectivityDetail("No internet connection detected.");
+        return false;
+      }
+      if (!isTauriRuntime) {
+        setConnectivityStatus("online");
+        setConnectivityDetail("Browser reports online.");
+        return true;
+      }
+
+      const status = await api.checkHuggingFaceConnectivity();
+      const reachable = status.online && status.huggingfaceReachable;
+      setConnectivityStatus(reachable ? "online" : "offline");
+      setConnectivityDetail(
+        reachable
+          ? "Connected to Hugging Face."
+          : getErrorMessage(status.detail, "No internet or Hugging Face is unreachable."),
+      );
+      return reachable;
+    } catch (error) {
+      setConnectivityStatus("offline");
+      setConnectivityDetail(getErrorMessage(error, "No internet or Hugging Face is unreachable."));
+      return false;
+    } finally {
+      setIsCheckingConnectivity(false);
+    }
+  }
+
+  async function handleDownload(modelId: string) {
+    const isConnected = await checkConnectivity();
+    if (!isConnected) {
+      return;
+    }
+    await downloadModel(modelId);
+  }
+
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <h1 className="display-title inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <Boxes className="size-5" />
+        <h1 className="inline-flex items-center gap-2">
+          <Boxes />
           Model Library
         </h1>
-        <p className="text-sm">Download once from Hugging Face, then run offline.</p>
+        <p>Download once from Hugging Face, then run offline.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => void checkConnectivity()} disabled={isCheckingConnectivity}>
+            {isCheckingConnectivity ? "Checking..." : "Check connectivity"}
+          </Button>
+          {connectivityStatus === "offline" && <Badge variant="destructive">No internet</Badge>}
+          {connectivityStatus === "online" && <Badge variant="secondary">Online</Badge>}
+        </div>
+        {connectivityDetail ? <p>{connectivityDetail}</p> : null}
       </header>
 
       <ItemGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -78,10 +154,10 @@ export function ModelsPage() {
             <Item
               key={model.id}
               variant="outline"
-              className="feature-card island-shell h-full px-4 py-4"
+              className="h-full px-4 py-4"
             >
               <ItemHeader className="items-start">
-                <ItemTitle className="text-lg">{model.name}</ItemTitle>
+                <ItemTitle>{model.name}</ItemTitle>
                 <ItemActions className="flex-wrap justify-end gap-1.5">
                   <Badge variant={statusBadgeVariant}>{statusLabel}</Badge>
                   {model.recommended && <Badge variant="secondary">Recommended</Badge>}
@@ -92,16 +168,16 @@ export function ModelsPage() {
 
               <ItemContent className="gap-3 md:grid md:grid-cols-[1fr_auto] md:gap-4">
                 <div className="space-y-3">
-                  <ItemDescription className="line-clamp-none text-sm">{model.description}</ItemDescription>
-                  <p className="text-xs">
+                  <ItemDescription>{model.description}</ItemDescription>
+                  <p>
                     Model ID: <code>{model.id}</code>
                   </p>
                 </div>
 
                 {hasProgress && (
                   <div className="space-y-2 p-2 md:min-w-56">
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-medium">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>
                         {isDownloading ? "Downloading model" : "Download complete"}
                       </span>
                       <span>{Math.round(progressValue)}%</span>
@@ -115,10 +191,10 @@ export function ModelsPage() {
                 <ItemActions className="flex-wrap">
                   <Button
                     variant={installButtonVariant}
-                    disabled={isDownloading}
-                    onClick={() => void downloadModel(model.id).catch(() => undefined)}
+                    disabled={isDownloading || isCheckingConnectivity}
+                    onClick={() => void handleDownload(model.id).catch(() => undefined)}
                   >
-                    <Download className="size-4" />
+                    <Download />
                     {isDownloading ? "Downloading..." : actionLabel}
                   </Button>
                   <Button
@@ -126,7 +202,7 @@ export function ModelsPage() {
                     disabled={!isInstalled || isDownloading}
                     onClick={() => setPendingRemoveModelId(model.id)}
                   >
-                    <Trash2 className="size-4" />
+                    <Trash2 />
                     Remove local model
                   </Button>
                 </ItemActions>

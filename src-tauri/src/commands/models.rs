@@ -1,10 +1,19 @@
 use crate::domain::app_error::AppError;
 use crate::domain::model_manifest::{InstalledModel, ModelInfo};
 use crate::state::app_state::{AppState, DownloadTaskInfo};
+use serde::Serialize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectivityStatus {
+    pub online: bool,
+    pub huggingface_reachable: bool,
+    pub detail: Option<String>,
+}
 
 #[tauri::command]
 pub async fn list_models(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<ModelInfo>, String> {
@@ -114,4 +123,22 @@ pub async fn delete_model(
         .delete_model(&app, &model_id)
         .await
         .map_err(String::from)
+}
+
+#[tauri::command]
+pub async fn check_huggingface_connectivity(
+    state: State<'_, AppState>,
+) -> Result<ConnectivityStatus, String> {
+    match state.model_manager.check_huggingface_connectivity().await {
+        Ok(()) => Ok(ConnectivityStatus {
+            online: true,
+            huggingface_reachable: true,
+            detail: None,
+        }),
+        Err(error) => Ok(ConnectivityStatus {
+            online: false,
+            huggingface_reachable: false,
+            detail: Some(error.to_string()),
+        }),
+    }
 }
