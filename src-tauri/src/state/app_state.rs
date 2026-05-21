@@ -28,6 +28,9 @@ pub struct AppSettings {
     pub cleanup_model_id: Option<String>,
     pub history_retention_days: Option<u32>,
     pub history_retention_include_pinned: bool,
+    pub overlay_shortcut: String,
+    pub overlay_pinned: bool,
+    pub overlay_hide_stops_recording: bool,
 }
 
 impl Default for AppSettings {
@@ -50,6 +53,9 @@ impl Default for AppSettings {
             cleanup_model_id: None,
             history_retention_days: None,
             history_retention_include_pinned: false,
+            overlay_shortcut: "CmdOrCtrl+Shift+Space".to_string(),
+            overlay_pinned: true,
+            overlay_hide_stops_recording: true,
         }
     }
 }
@@ -69,6 +75,7 @@ pub struct AppState {
     pub cleanup_service: Arc<CleanupService>,
     pub download_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
     pub transcription_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    pub overlay_shortcut: Mutex<String>,
 }
 
 impl AppState {
@@ -80,6 +87,7 @@ impl AppState {
             cleanup_service: Arc::new(CleanupService::new()),
             download_flags: Mutex::new(HashMap::new()),
             transcription_flags: Mutex::new(HashMap::new()),
+            overlay_shortcut: Mutex::new(AppSettings::default().overlay_shortcut),
         }
     }
 }

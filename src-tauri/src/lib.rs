@@ -7,18 +7,21 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use state::app_state::AppState;
+use state::app_state::{AppSettings, AppState};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     image::Image,
     tray::{MouseButton, MouseButtonState, TrayIconEvent},
-    AppHandle, Manager, WebviewWindow,
+    AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 const MAIN_WINDOW_LABEL: &str = "main";
+const OVERLAY_WINDOW_LABEL: &str = "overlay";
 const MENU_ID_TOGGLE_WINDOW: &str = "toggle_window";
+const MENU_ID_TOGGLE_OVERLAY: &str = "toggle_overlay";
 const MENU_ID_QUIT_APP: &str = "quit_app";
 
 fn toggle_main_window(window: &WebviewWindow) {
@@ -36,6 +39,25 @@ where
     F: FnOnce(&WebviewWindow),
 {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        f(&window);
+    }
+}
+
+fn toggle_overlay_window(window: &WebviewWindow) {
+    if window.is_visible().unwrap_or(false) {
+        let _ = window.hide();
+    } else {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn with_overlay_window<F>(app: &AppHandle, f: F)
+where
+    F: FnOnce(&WebviewWindow),
+{
+    if let Some(window) = app.get_webview_window(OVERLAY_WINDOW_LABEL) {
         f(&window);
     }
 }
@@ -84,6 +106,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new().with_handler(|app, _shortcut, _event| {
+                with_overlay_window(app, toggle_overlay_window);
+            }).build(),
+        )
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None::<Vec<&str>>,
@@ -93,10 +120,32 @@ pub fn run() {
             move |app| {
                 let toggle_item =
                     MenuItemBuilder::with_id(MENU_ID_TOGGLE_WINDOW, "Show/Hide").build(app)?;
+                let toggle_overlay_item =
+                    MenuItemBuilder::with_id(MENU_ID_TOGGLE_OVERLAY, "Toggle Overlay").build(app)?;
                 let quit_item = MenuItemBuilder::with_id(MENU_ID_QUIT_APP, "Quit").build(app)?;
                 let tray_menu = MenuBuilder::new(app)
-                    .items(&[&toggle_item, &quit_item])
+                    .items(&[&toggle_item, &toggle_overlay_item, &quit_item])
                     .build()?;
+
+                let startup_settings = commands::settings::get_settings(app.handle().clone())
+                    .unwrap_or_else(|_| AppSettings::default());
+                let overlay_url = WebviewUrl::App("/overlay".into());
+                WebviewWindowBuilder::new(app, OVERLAY_WINDOW_LABEL, overlay_url)
+                    .title("Murmur Overlay")
+                    .inner_size(420.0, 180.0)
+                    .decorations(false)
+                    .always_on_top(startup_settings.overlay_pinned)
+                    .resizable(false)
+                    .skip_taskbar(true)
+                    .visible(false)
+                    .build()?;
+
+                if let Err(error) = app
+                    .global_shortcut()
+                    .register(startup_settings.overlay_shortcut.as_str())
+                {
+                    eprintln!("global shortcut registration warning: {error}");
+                }
 
                 #[cfg(target_os = "macos")]
                 let tray_icon = if let Ok(decoded) =
@@ -126,6 +175,9 @@ pub fn run() {
                         move |app, event| match event.id().as_ref() {
                             MENU_ID_TOGGLE_WINDOW => {
                                 with_main_window(app, toggle_main_window);
+                            }
+                            MENU_ID_TOGGLE_OVERLAY => {
+                                with_overlay_window(app, toggle_overlay_window);
                             }
                             MENU_ID_QUIT_APP => {
                                 quit_requested.store(true, Ordering::SeqCst);
@@ -166,11 +218,26 @@ pub fn run() {
                     }
                 });
 
+                with_overlay_window(app.handle(), move |window| {
+                    let window = window.clone();
+                    let window_for_close = window.clone();
+                    window.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                            api.prevent_close();
+                            let _ = window_for_close.hide();
+                        }
+                    });
+                });
+
                 if let Err(error) = commands::settings::validate_settings_on_startup(app.handle()) {
                     eprintln!("settings validation warning: {error}");
                 }
 
                 let state = app.state::<AppState>();
+                {
+                    let mut overlay_shortcut = tauri::async_runtime::block_on(state.overlay_shortcut.lock());
+                    *overlay_shortcut = startup_settings.overlay_shortcut;
+                }
                 if let Err(error) = state.transcription_store.initialize(app.handle()) {
                     eprintln!("transcription store initialization warning: {error}");
                 }
@@ -194,6 +261,11 @@ pub fn run() {
             commands::settings::get_settings_file_path,
             commands::settings::is_start_at_login_enabled,
             commands::settings::set_start_at_login,
+            commands::overlay::toggle_overlay,
+            commands::overlay::show_overlay,
+            commands::overlay::hide_overlay,
+            commands::overlay::set_overlay_shortcut,
+            commands::overlay::set_overlay_pinned,
             commands::transcription::transcribe_file,
             commands::transcription::transcribe_recording,
             commands::transcription::transcribe_pcm,

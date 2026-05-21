@@ -38,6 +38,9 @@ const mockState: AppStateValue = {
     cleanupModelId: null,
     historyRetentionDays: null,
     historyRetentionIncludePinned: false,
+    overlayShortcut: "CmdOrCtrl+Shift+Space",
+    overlayPinned: true,
+    overlayHideStopsRecording: true,
   },
   transcript: "",
   rawTranscript: "",
@@ -104,5 +107,10 @@ describe("router integration smoke", () => {
   it("renders /cleanup", async () => {
     await renderAt("/cleanup");
     await waitFor(() => expect(screen.getByText("Cleanup Pipeline")).toBeInTheDocument());
+  });
+
+  it("renders /overlay", async () => {
+    await renderAt("/overlay");
+    await waitFor(() => expect(screen.getByText("Record")).toBeInTheDocument());
   });
 });

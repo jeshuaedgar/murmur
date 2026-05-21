@@ -111,6 +111,8 @@ export function useAppBootstrap({
         ? { ...appSettings, defaultModelId: fallbackInstalled!.id, startAtLogin: startAtLoginEnabled }
         : { ...appSettings, startAtLogin: startAtLoginEnabled };
       setSettings(nextSettings);
+      await api.setOverlayPinned(nextSettings.overlayPinned).catch(() => undefined);
+      await api.setOverlayShortcut(nextSettings.overlayShortcut).catch(() => undefined);
       setAppDataDir(dataDir);
       setSettingsFilePath(settingsFilePath);
       setBackendAudioInputs(audioInputs);

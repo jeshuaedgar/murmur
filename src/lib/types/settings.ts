@@ -16,4 +16,7 @@ export type AppSettings = {
   cleanupModelId?: string | null;
   historyRetentionDays?: number | null;
   historyRetentionIncludePinned: boolean;
+  overlayShortcut: string;
+  overlayPinned: boolean;
+  overlayHideStopsRecording: boolean;
 };

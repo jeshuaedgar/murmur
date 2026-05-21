@@ -229,6 +229,25 @@ fn validate_settings_value(value: &serde_yaml::Value) -> ValidatedSettings {
             defaults.history_retention_include_pinned,
             &mut invalid_keys,
         ),
+        overlay_shortcut: parse_string(
+            get("overlayShortcut"),
+            "overlayShortcut",
+            &defaults.overlay_shortcut,
+            false,
+            &mut invalid_keys,
+        ),
+        overlay_pinned: parse_bool(
+            get("overlayPinned"),
+            "overlayPinned",
+            defaults.overlay_pinned,
+            &mut invalid_keys,
+        ),
+        overlay_hide_stops_recording: parse_bool(
+            get("overlayHideStopsRecording"),
+            "overlayHideStopsRecording",
+            defaults.overlay_hide_stops_recording,
+            &mut invalid_keys,
+        ),
     };
 
     ValidatedSettings {
@@ -350,6 +369,9 @@ cleanupLatencyBudgetMs: 200
 cleanupShowRawToggle: false
 cleanupBackend: rules_only
 cleanupModelId: null
+overlayShortcut: CmdOrCtrl+Shift+Space
+overlayPinned: true
+overlayHideStopsRecording: true
 "#,
         )
         .expect("valid yaml");

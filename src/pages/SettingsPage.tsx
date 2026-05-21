@@ -81,6 +81,9 @@ export function SettingsPage() {
     onCleanupShowRawToggleChange,
     onHistoryRetentionDaysChange,
     onHistoryRetentionIncludePinnedChange,
+    onOverlayShortcutChange,
+    onOverlayPinnedChange,
+    onOverlayHideStopsRecordingChange,
     onSaveSettings,
   } = useSettingsPageLogic({
     models,
@@ -556,6 +559,43 @@ export function SettingsPage() {
               <p className="text-sm text-muted-foreground">Launch Murmur automatically when you sign in.</p>
               </div>
               <Switch id="start-at-login" checked={settings.startAtLogin} onCheckedChange={onStartAtLoginChange} />
+            </div>
+            <Separator />
+            <div>
+              <p className="text-sm font-medium">Overlay</p>
+              <p className="text-xs text-muted-foreground">Configure floating window behavior and global trigger shortcut.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 py-1 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="overlay-shortcut">Overlay shortcut</Label>
+                <Input
+                  id="overlay-shortcut"
+                  placeholder="CmdOrCtrl+Shift+Space"
+                  value={settings.overlayShortcut}
+                  onChange={(event) => onOverlayShortcutChange(event.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Example: CmdOrCtrl+Shift+Space</p>
+              </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-4 py-1">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="overlay-pinned">Pin overlay on top</Label>
+                    <p className="text-sm text-muted-foreground">Keep the overlay always on top of other windows.</p>
+                  </div>
+                  <Switch id="overlay-pinned" checked={settings.overlayPinned} onCheckedChange={onOverlayPinnedChange} />
+                </div>
+                <div className="flex items-start justify-between gap-4 py-1">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="overlay-hide-stop">Hide button stops recording</Label>
+                    <p className="text-sm text-muted-foreground">When enabled, hiding the overlay finalizes recording and transcription.</p>
+                  </div>
+                  <Switch
+                    id="overlay-hide-stop"
+                    checked={settings.overlayHideStopsRecording}
+                    onCheckedChange={onOverlayHideStopsRecordingChange}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

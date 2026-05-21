@@ -32,7 +32,7 @@ export function CleanupPage() {
     onCleanupShowRawToggleChange,
     onCleanupBackendChange,
     onCleanupModelIdChange,
-  } = useCleanupPageLogic({ settings, models, installedById, setSettings });
+  } = useCleanupPageLogic({ models, installedById, setSettings });
   const hasCleanupModelsInstalled = installedCount > 0;
 
   return (

@@ -40,6 +40,13 @@ export const api = {
   saveSettings: (settings: AppSettings) => invoke<void>("save_settings", { settings }),
   isStartAtLoginEnabled: () => invoke<boolean>("is_start_at_login_enabled"),
   setStartAtLogin: (enabled: boolean) => invoke<void>("set_start_at_login", { enabled }),
+  toggleOverlay: () => invoke<void>("toggle_overlay"),
+  showOverlay: () => invoke<void>("show_overlay"),
+  hideOverlay: () => invoke<void>("hide_overlay"),
+  setOverlayShortcut: (shortcut: string) =>
+    invoke<void>("set_overlay_shortcut", { shortcut }),
+  setOverlayPinned: (pinned: boolean) =>
+    invoke<void>("set_overlay_pinned", { pinned }),
   transcribeFile: (path: string, options: TranscriptionOptions) =>
     invoke<TranscriptionResult>("transcribe_file", { path, options }),
   transcribeRecording: (path: string, options: TranscriptionOptions) =>

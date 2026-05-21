@@ -39,6 +39,11 @@ export default function App({ children }: { children: ReactNode }) {
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
 	});
+	const isOverlayRoute = pathname === "/overlay";
+
+	if (isOverlayRoute) {
+		return <div className="h-screen overflow-hidden">{children}</div>;
+	}
 
 	return (
 		<div className="flex h-screen flex-col">

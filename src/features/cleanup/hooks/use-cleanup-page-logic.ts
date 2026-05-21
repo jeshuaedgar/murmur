@@ -13,12 +13,10 @@ import {
 } from "@/features/settings/lib/settings-updaters";
 
 export function useCleanupPageLogic({
-  settings,
   models,
   installedById,
   setSettings,
 }: {
-  settings: AppSettings;
   models: ModelInfo[];
   installedById: Map<string, InstalledModel>;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;

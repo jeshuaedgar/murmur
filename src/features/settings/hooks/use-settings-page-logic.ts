@@ -13,6 +13,9 @@ import {
   updateLanguage,
   updateLiveCleanupEnabled,
   updateLiveCleanupMode,
+  updateOverlayHideStopsRecording,
+  updateOverlayPinned,
+  updateOverlayShortcut,
   updateHistoryRetentionDays,
   updateHistoryRetentionIncludePinned,
   updateStartAtLogin,
@@ -167,6 +170,18 @@ export function useSettingsPageLogic({
     (checked: boolean) => setSettings(updateHistoryRetentionIncludePinned(checked)),
     [setSettings],
   );
+  const onOverlayShortcutChange = useCallback(
+    (value: string) => setSettings(updateOverlayShortcut(value)),
+    [setSettings],
+  );
+  const onOverlayPinnedChange = useCallback(
+    (checked: boolean) => setSettings(updateOverlayPinned(checked)),
+    [setSettings],
+  );
+  const onOverlayHideStopsRecordingChange = useCallback(
+    (checked: boolean) => setSettings(updateOverlayHideStopsRecording(checked)),
+    [setSettings],
+  );
 
   return {
     modelOptionsByLab,
@@ -187,6 +202,9 @@ export function useSettingsPageLogic({
     onCleanupShowRawToggleChange,
     onHistoryRetentionDaysChange,
     onHistoryRetentionIncludePinnedChange,
+    onOverlayShortcutChange,
+    onOverlayPinnedChange,
+    onOverlayHideStopsRecordingChange,
     onSaveSettings,
   };
 }

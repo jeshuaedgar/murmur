@@ -19,6 +19,9 @@ export const updateCleanupLatencyBudgetMs = updateSetting("cleanupLatencyBudgetM
 export const updateCleanupShowRawToggle = updateSetting("cleanupShowRawToggle");
 export const updateCleanupBackend = updateSetting("cleanupBackend");
 export const updateHistoryRetentionIncludePinned = updateSetting("historyRetentionIncludePinned");
+export const updateOverlayShortcut = updateSetting("overlayShortcut");
+export const updateOverlayPinned = updateSetting("overlayPinned");
+export const updateOverlayHideStopsRecording = updateSetting("overlayHideStopsRecording");
 export const updateHistoryRetentionDays: SettingsUpdater<number | null> = (value) => (prev) => ({
   ...prev,
   historyRetentionDays: value,

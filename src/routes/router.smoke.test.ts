@@ -11,5 +11,6 @@ describe("router smoke", () => {
     expect(fullPaths).toContain("/cleanup");
     expect(fullPaths).toContain("/history");
     expect(fullPaths).toContain("/settings");
+    expect(fullPaths).toContain("/overlay");
   });
 });

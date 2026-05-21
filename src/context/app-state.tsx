@@ -39,6 +39,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     cleanupModelId: null,
     historyRetentionDays: null,
     historyRetentionIncludePinned: false,
+    overlayShortcut: "CmdOrCtrl+Shift+Space",
+    overlayPinned: true,
+    overlayHideStopsRecording: true,
   });
   const [transcript, setTranscript] = useState("");
   const [rawTranscript, setRawTranscript] = useState("");
@@ -118,6 +121,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         api.saveSettings(settings),
         api.setStartAtLogin(settings.startAtLogin),
+        api.setOverlayShortcut(settings.overlayShortcut),
+        api.setOverlayPinned(settings.overlayPinned),
       ]);
       setStatus("settings saved");
       toastSuccess("Settings saved");
