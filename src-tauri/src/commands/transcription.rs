@@ -155,6 +155,7 @@ pub async fn start_transcription_file(
                     "transcription-error",
                     serde_json::json!({ "taskId": task_id_for_task, "error": err.to_string() }),
                 );
+                cleanup_transcription_flag(&app_handle, &task_id_for_task).await;
                 return;
             }
         };
@@ -166,6 +167,7 @@ pub async fn start_transcription_file(
                     "error": format!("model '{}' is not installed", options.model_id),
                 }),
             );
+            cleanup_transcription_flag(&app_handle, &task_id_for_task).await;
             return;
         }
 
@@ -176,6 +178,7 @@ pub async fn start_transcription_file(
                     "transcription-error",
                     serde_json::json!({ "taskId": task_id_for_task, "error": err.to_string() }),
                 );
+                cleanup_transcription_flag(&app_handle, &task_id_for_task).await;
                 return;
             }
         };
