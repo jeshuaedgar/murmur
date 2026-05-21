@@ -206,3 +206,73 @@ Priority order for highest product impact:
 3. Global hotkey + tray quick controls
 4. Test coverage for model/download/audio core
 5. Cross-platform packaging/signing pipeline
+
+## 15) Overlay UX Redesign and Interaction Plan (Current Priority)
+
+This section scopes the active redesign work for the Tauri + React overlay while preserving existing behavior:
+- global hotkey starts/stops transcription (does not toggle overlay visibility)
+- `overlayEnabled` keeps overlay available/present
+- backend commands/settings compatibility remains intact unless a blocker is discovered
+
+Legend:
+- `[x]` Done
+- `[ ]` Not done
+
+### A) Visual Form and Information Hierarchy
+
+- [ ] Convert overlay to compact icon/pill presentation as default footprint
+- [ ] Add expanded transcript panel on demand without losing compact quick-access mode
+- [ ] Prioritize primary action (record/stop) visually over pin/close secondary controls
+- [ ] Clarify state hierarchy with explicit labeled states: `Idle`, `Recording`, `Transcribing`, `Done`, `Error`
+- [ ] Improve microcopy for each state and transition edge case
+
+### B) Active Transcribing Motion and Waveform
+
+- [ ] Install ElevenLabs UI waveform component via `npx @elevenlabs/cli@latest components add waveform`
+- [ ] Verify component setup and styling compatibility with existing UI system
+- [ ] Integrate waveform animation into compact overlay while `Transcribing` is active
+- [ ] Add reduced-motion fallback and avoid noisy animation loops
+
+### C) Transcript Completion and Auto-Paste
+
+- [ ] Auto-paste transcribed text to active target immediately after completion
+- [ ] Preserve existing hotkey and transcription lifecycle behavior
+- [ ] Keep completion transcript visible in overlay (`Done`) until next recording or clear
+- [ ] Guard against duplicate auto-paste on repeated completion events
+
+### D) Controls and Overlay Enabled Semantics
+
+- [ ] Keep hide/close affordance available but de-emphasized versus primary action
+- [ ] Make disabled close/hide behavior explicit when `overlayEnabled` prevents hiding
+- [ ] Add tooltip/inline helper copy explaining why close is unavailable
+- [ ] Maintain pin behavior and improve control spacing/hit targets
+
+### E) Accessibility and Keyboard
+
+- [ ] Validate keyboard focus order in compact and expanded modes
+- [ ] Ensure Enter/Space trigger primary action and Escape follows overlay policy
+- [ ] Add ARIA labels for all control buttons and waveform context
+- [ ] Add `aria-live` announcements for state changes (`polite`) and errors (`assertive`)
+- [ ] Validate color contrast across all states (especially Recording/Error)
+
+### F) Code Quality and Regression Safety
+
+- [ ] Refactor overlay state rendering to a single maintainable state-to-UI mapping
+- [ ] Keep non-overlay routes untouched and verify no cross-route regressions
+- [ ] Add/update component/integration tests for all core overlay states
+- [ ] Add tests for auto-paste completion flow and disabled hide behavior
+- [ ] Keep build/test/cargo checks green
+
+### G) Verification Checklist (Must Run)
+
+- [ ] `npm run test`
+- [ ] `npm run build`
+- [ ] `cargo check` (run in `src-tauri`)
+
+### H) Execution Order
+
+1. Implement compact pill/icon shell and control hierarchy.
+2. Integrate waveform animation for active transcribing state.
+3. Add completion auto-paste and dedupe safeguards.
+4. Finalize accessibility labels/live regions and keyboard behavior.
+5. Update tests, then run full verification (`test`, `build`, `cargo check`).
