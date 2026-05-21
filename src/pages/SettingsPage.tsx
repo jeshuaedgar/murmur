@@ -174,26 +174,7 @@ export function SettingsPage() {
             Preferences
           </CardTitle>
           <CardDescription>Configure model, language, audio input, and automation behavior.</CardDescription>
-          <CardAction>
-            <div className="flex flex-wrap items-center gap-2">
-              {connectivityStatus === "offline" && <Badge variant="destructive">No internet</Badge>}
-              {connectivityStatus === "online" && <Badge variant="secondary">Online</Badge>}
-              {connectivityStatus === "unknown" && <Badge variant="outline">Connectivity unknown</Badge>}
-            </div>
-          </CardAction>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Use these sections to configure defaults, automation behavior, and diagnostics. Changes are applied when you
-            save settings.
-          </p>
-        </CardContent>
-        <CardFooter className="justify-end">
-          <Button onClick={() => void onSaveSettings()}>
-            <Save />
-            Save settings
-          </Button>
-        </CardFooter>
       </Card>
 
       <Card>

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -37,20 +37,27 @@ export function CleanupPage() {
 
   return (
     <div className="relative space-y-5">
-      <header className="space-y-3 rounded-xl border bg-card px-5 py-4">
-        <h1 className="inline-flex items-center gap-2 text-2xl font-semibold tracking-tight">
-          <WandSparkles />
-          Cleanup Pipeline
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Dedicated setup for live stop-word filtering, finalized cleanup behavior, and backend runtime/model configuration.
-        </p>
-      </header>
+      <Card>
+        <CardHeader>
+          <CardTitle className="inline-flex items-center gap-2 text-2xl md:text-3xl">
+            <WandSparkles className="size-5" />
+            Cleanup Pipeline
+          </CardTitle>
+          <CardDescription>
+            Dedicated setup for live stop-word filtering, finalized cleanup behavior, and backend runtime/model configuration.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Live and Finalized Behavior</CardTitle>
           <CardDescription>Configure what runs live vs after segment finalization.</CardDescription>
+          <CardAction>
+            <Badge variant={settings.cleanupEnabled ? "secondary" : "outline"}>
+              {settings.cleanupEnabled ? "Enabled" : "Disabled"}
+            </Badge>
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-start justify-between gap-4 py-1">
@@ -124,12 +131,18 @@ export function CleanupPage() {
             </div>
           </div>
         </CardContent>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">Live mode prioritizes low latency while finalized mode can run deeper cleanup.</p>
+        </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Rules Profile</CardTitle>
           <CardDescription>Current deterministic cleanup rules used in live and fallback behavior.</CardDescription>
+          <CardAction>
+            <Badge variant="outline">{cleanupRulesPreview.length} active rules</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-2">
           {cleanupRulesPreview.map((rule) => (
@@ -138,6 +151,9 @@ export function CleanupPage() {
             </div>
           ))}
         </CardContent>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">These rules apply to live cleanup and fallback finalized cleanup.</p>
+        </CardFooter>
       </Card>
 
       <Card>
@@ -146,6 +162,9 @@ export function CleanupPage() {
           <CardDescription>
             Choose the cleanup backend and select local model resources. Cleanup models use a different backend path than Whisper transcription.
           </CardDescription>
+          <CardAction>
+            <Badge variant="outline">Status: {status}</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="overflow-hidden rounded-xl border bg-muted/10">
