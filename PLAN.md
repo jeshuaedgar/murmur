@@ -62,8 +62,8 @@ Legend:
 - [x] Device selection UI (browser-side device IDs)
 - [x] Persist selected audio input in settings
 - [x] WAV decode + mono + 16 kHz normalization path
-- [ ] Add MP3 import support
-- [ ] Add M4A/AAC import support
+- [x] Add MP3 import support
+- [x] Add M4A/AAC import support
 - [ ] Add FLAC/OGG import support
 - [ ] Add robust transcoding strategy (Rust-native first, optional ffmpeg fallback)
 - [ ] Add recording quality controls (sample rate / channel policy)
@@ -177,7 +177,7 @@ Legend:
 ## 13) Recommended Next Milestones
 
 ### Milestone A — “MVP Complete”
-- [ ] MP3/M4A import support
+- [x] MP3/M4A import support
 - [ ] Save/export transcript
 - [ ] First-run onboarding
 - [ ] Unit tests for model manager/downloader/audio conversion
