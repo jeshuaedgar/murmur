@@ -12,6 +12,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toastError, toastSuccess, toastWarning } from "@/lib/toast";
@@ -251,6 +252,8 @@ export function HistoryPage() {
   const isBusy = pendingAction !== null;
   const isFsActionUnavailable = !isTauriRuntime;
   const isSearchNoMatch = Boolean(query.trim()) && items.length === 0 && !isLoading && !loadError;
+  const operationStatus = pendingAction ? `Running ${pendingAction} operation.` : "";
+  const listStatus = isLoading ? "Loading history entries." : `Showing ${items.length} history entries.`;
 
   return (
     <div className="space-y-4">
@@ -260,29 +263,42 @@ export function HistoryPage() {
             <History className="size-5" />
             Transcription History
           </CardTitle>
-          <CardDescription>Review, search, and manage stored transcript sessions.</CardDescription>
+          <CardDescription>Review, search, and manage saved transcription sessions.</CardDescription>
         </CardHeader>
       </Card>
 
+      <p className="sr-only" role="status" aria-live="polite">
+        {operationStatus}
+      </p>
+
       <section className="grid h-full grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" aria-busy={isLoading}>
         <CardHeader className="pb-3">
           <CardTitle>History Library</CardTitle>
-          <CardDescription>Search, filter, import, and export transcript sessions.</CardDescription>
+          <CardDescription>Search, filter, import, and export saved transcription sessions.</CardDescription>
           <CardAction>
             <Badge variant="outline">Avg ms: {Math.round(stats?.avgDurationMs ?? 0)}</Badge>
           </CardAction>
         </CardHeader>
         <CardContent className="flex h-[calc(100vh-15rem)] flex-col gap-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Badge variant="outline" className="justify-start">Total: {stats?.totalCount ?? 0}</Badge>
-            <Badge variant="outline" className="justify-start">Pinned: {stats?.pinnedCount ?? 0}</Badge>
-            <Badge variant="outline" className="justify-start">Deleted: {stats?.deletedCount ?? 0}</Badge>
-            <Badge variant="outline" className="justify-start">Avg ms: {Math.round(stats?.avgDurationMs ?? 0)}</Badge>
-          </div>
+          {isLoading && !stats ? (
+            <div className="grid grid-cols-2 gap-2" aria-hidden="true">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={`stats-skeleton-${index}`} className="h-6 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Badge variant="outline" className="justify-start">Total: {stats?.totalCount ?? 0}</Badge>
+              <Badge variant="outline" className="justify-start">Pinned: {stats?.pinnedCount ?? 0}</Badge>
+              <Badge variant="outline" className="justify-start">Deleted: {stats?.deletedCount ?? 0}</Badge>
+              <Badge variant="outline" className="justify-start">Avg ms: {Math.round(stats?.avgDurationMs ?? 0)}</Badge>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Input
+              aria-label="Search transcript text"
               placeholder="Search transcript text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -310,7 +326,7 @@ export function HistoryPage() {
             </p>
           ) : null}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <div className="overflow-x-auto pb-1">
               <ButtonGroup className="min-w-max">
               <Button
@@ -351,6 +367,7 @@ export function HistoryPage() {
             </div>
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => void onImport()}
               disabled={isBusy || isFsActionUnavailable}
               title={isFsActionUnavailable ? "Available in desktop app only." : "Import transcription history from a JSON export."}
@@ -366,14 +383,31 @@ export function HistoryPage() {
 
           <Separator />
 
+          <p className="sr-only" role="status" aria-live="polite">
+            {listStatus}
+          </p>
           <ScrollArea className="min-h-0 flex-1 pr-2">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2" role="listbox" aria-label="History entries">
               {items.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setSelectedId(item.id)}
-                  className={`w-full rounded-xl border p-3 text-left transition hover:bg-muted/50 ${selected?.id === item.id ? "border-primary bg-muted/50" : ""}`}
+                  onKeyDown={(event) => {
+                    if (!items.length) return;
+                    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+                    event.preventDefault();
+                    const currentIndex = items.findIndex((candidate) => candidate.id === item.id);
+                    const nextIndex =
+                      event.key === "ArrowDown"
+                        ? Math.min(items.length - 1, currentIndex + 1)
+                        : Math.max(0, currentIndex - 1);
+                    setSelectedId(items[nextIndex]?.id ?? item.id);
+                  }}
+                  className={`w-full rounded-xl border p-3 text-left transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected?.id === item.id ? "border-primary bg-muted/50" : ""}`}
+                  role="option"
+                  aria-selected={selected?.id === item.id}
+                  aria-label={`Open history entry ${item.modelId} created ${formatDate(item.createdAt)}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-sm font-semibold">{item.modelId}</p>
@@ -437,6 +471,17 @@ export function HistoryPage() {
                   </EmptyHeader>
                 </Empty>
               ) : null}
+              {isLoading && items.length === 0 ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div key={`history-skeleton-${index}`} className="space-y-2 rounded-xl border p-3">
+                      <Skeleton className="h-4 w-2/5" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-3/4" />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </ScrollArea>
         </CardContent>
@@ -451,16 +496,23 @@ export function HistoryPage() {
         </CardFooter>
       </Card>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" aria-busy={isLoading && !selected}>
         <CardHeader className="pb-3">
           <CardTitle>Entry Inspector</CardTitle>
-          <CardDescription>Review and adjust cleaned text before reuse.</CardDescription>
+          <CardDescription>Review and edit cleaned text before reusing it.</CardDescription>
           <CardAction>
             {selected ? <Badge variant="outline">{selected.sourceType}</Badge> : <Badge variant="outline">No selection</Badge>}
           </CardAction>
         </CardHeader>
         <CardContent className="h-[calc(100vh-15rem)]">
-          {!selected ? (
+          {!selected && isLoading ? (
+            <div className="space-y-4 p-2" aria-hidden="true">
+              <Skeleton className="h-6 w-1/3" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          ) : !selected ? (
             <Empty className="h-full border">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -473,26 +525,26 @@ export function HistoryPage() {
           ) : (
             <ScrollArea className="h-full pr-2">
               <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-1">
                     <h2 className="text-xl font-semibold">{selected.modelId}</h2>
                     <p className="text-xs text-muted-foreground">
                       Created {formatDate(selected.createdAt)} | Source {selected.sourceType}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => void onCopyCleaned(selected)} disabled={isBusy}>
+                  <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => void onCopyCleaned(selected)} disabled={isBusy}>
                       Copy cleaned text
                     </Button>
-                    <Button variant="outline" onClick={() => void onTogglePin(selected)} disabled={isBusy}>
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => void onTogglePin(selected)} disabled={isBusy}>
                       {selected.pinned ? "Unpin" : "Pin"}
                     </Button>
                     {selected.deletedAt ? (
-                      <Button variant="secondary" onClick={() => void onRestore(selected)} disabled={isBusy}>
+                      <Button variant="secondary" className="w-full sm:w-auto" onClick={() => void onRestore(selected)} disabled={isBusy}>
                         Restore
                       </Button>
                     ) : (
-                      <Button variant="destructive" onClick={() => void onDelete(selected)} disabled={isBusy}>
+                      <Button variant="destructive" className="w-full sm:w-auto" onClick={() => void onDelete(selected)} disabled={isBusy}>
                         {pendingAction === "delete" ? <Spinner /> : <Trash2 data-icon="inline-start" />}
                         {pendingAction === "delete" ? "Deleting..." : "Delete"}
                       </Button>

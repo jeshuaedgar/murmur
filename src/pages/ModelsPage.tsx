@@ -42,6 +42,7 @@ export function ModelsPage() {
   const { models, installedById, downloadProgress, downloadModel, deleteModel } = useAppState();
   const progressByModelId = useMemo(() => getModelProgressByModelId(downloadProgress), [downloadProgress]);
   const modelsByLab = useMemo(() => groupModelsByLab(models), [models]);
+  const isCatalogLoading = models.length === 0;
   const {
     checkConnectivity,
   } = useModelConnectivity();
@@ -97,10 +98,28 @@ export function ModelsPage() {
             Model Library
           </CardTitle>
           <CardDescription>
-            Browse model families, install once, and keep transcription fully offline.
+            Browse model families, install locally, and run transcription fully offline.
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {isCatalogLoading ? (
+        <Card aria-live="polite" aria-busy="true">
+          <CardHeader>
+            <CardTitle className="text-base">Loading model catalog</CardTitle>
+            <CardDescription>Loading available models and metadata.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={`model-loading-${index}`} className="space-y-2 rounded-xl border p-4">
+                <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-full animate-pulse rounded bg-muted" />
+                <div className="h-3 w-4/5 animate-pulse rounded bg-muted" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {modelsByLab.map(([lab, labModels]) => {
         if (lab === "Cleanup Models") {
@@ -183,12 +202,13 @@ export function ModelsPage() {
                       )}
                     </CardContent>
 
-                    <CardFooter className="mt-auto grid grid-cols-2 gap-2">
+                    <CardFooter className="mt-auto grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <Button
                         className="w-full"
                         variant={installButtonVariant}
                         disabled={isDownloading}
                         onClick={() => void handleDownload(model.id, isInstalled).catch(() => undefined)}
+                        aria-label={`${actionLabel} ${model.name}`}
                       >
                         {isDownloading ? <Spinner /> : isInstalled ? <RefreshCcw /> : <Download />}
                         {isDownloading ? "Downloading..." : actionLabel}
@@ -198,6 +218,7 @@ export function ModelsPage() {
                         variant="destructive"
                         disabled={!isInstalled || isDownloading}
                         onClick={() => openRemoveConfirmation(model.id)}
+                        aria-label={`Remove ${model.name}`}
                       >
                         <Trash2 />
                         Remove model
@@ -277,12 +298,13 @@ export function ModelsPage() {
                     )}
                   </CardContent>
 
-                  <CardFooter className="mt-auto grid grid-cols-2 gap-2">
+                  <CardFooter className="mt-auto grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Button
                       className="w-full"
                       variant={installButtonVariant}
                       disabled={isDownloading}
                       onClick={() => void handleDownload(model.id, isInstalled).catch(() => undefined)}
+                      aria-label={`${actionLabel} ${model.name}`}
                     >
                       {isDownloading ? <Spinner /> : isInstalled ? <RefreshCcw /> : <Download />}
                       {isDownloading ? "Downloading..." : actionLabel}
@@ -292,6 +314,7 @@ export function ModelsPage() {
                       variant="destructive"
                       disabled={!isInstalled || isDownloading}
                       onClick={() => openRemoveConfirmation(model.id)}
+                      aria-label={`Remove ${model.name}`}
                     >
                       <Trash2 />
                       Remove model

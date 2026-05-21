@@ -92,7 +92,7 @@ describe("router integration smoke", () => {
   it("renders /models", async () => {
     await renderAt("/models");
     await waitFor(() =>
-      expect(screen.getByText("Browse model families, install once, and keep transcription fully offline.")).toBeInTheDocument(),
+      expect(screen.getByText("Browse model families, install locally, and run transcription fully offline.")).toBeInTheDocument(),
     );
   });
 

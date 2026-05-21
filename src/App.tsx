@@ -22,8 +22,12 @@ function NavButton({
 	const isActive = pathname === to;
 
 	return (
-		<Button asChild variant={isActive ? "secondary" : "ghost"} className="min-w-24">
-			<Link to={to} className="inline-flex items-center gap-1.5">
+		<Button asChild variant={isActive ? "secondary" : "ghost"} className="min-w-24 shrink-0">
+			<Link
+				to={to}
+				aria-current={isActive ? "page" : undefined}
+				className="inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+			>
 				<Icon data-icon="inline-start" />
 				{label}
 			</Link>
@@ -48,13 +52,15 @@ export default function App({ children }: { children: ReactNode }) {
 								<p className="text-sm text-muted-foreground">Offline-first transcription</p>
 							</div>
 						</div>
-						<div className="flex flex-wrap items-center gap-2">
-							<Badge variant="outline">Desktop + Web</Badge>
-							<Badge variant="secondary">Local Whisper</Badge>
+						<div className="flex min-w-0 flex-1 justify-end">
+							<div className="flex max-w-full flex-wrap items-center justify-end gap-2 sm:gap-1">
+							<Badge variant="outline" className="whitespace-nowrap">Desktop + Web</Badge>
+							<Badge variant="secondary" className="whitespace-nowrap">Local Whisper</Badge>
+							</div>
 						</div>
 					</div>
 					<Separator />
-					<nav aria-label="Primary" className="flex flex-wrap gap-1">
+					<nav aria-label="Primary" className="flex gap-1 overflow-x-auto pb-1">
 						<NavButton to="/home" label="Home" icon={House} />
 						<NavButton to="/models" label="Models" icon={Boxes} />
 						<NavButton to="/cleanup" label="Cleanup" icon={WandSparkles} />

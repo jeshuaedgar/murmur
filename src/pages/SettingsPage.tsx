@@ -291,7 +291,7 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Settings</CardTitle>
-          <CardDescription>Configure model, language, audio input, and automation behavior.</CardDescription>
+          <CardDescription>Manage model, input, automation, diagnostics, and storage preferences.</CardDescription>
         </CardHeader>
       </Card>
 
@@ -302,10 +302,10 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
-            <Sparkles />
+            <Sparkles className="size-4 text-muted-foreground" />
             General Settings
           </CardTitle>
-          <CardDescription>Default model and language settings.</CardDescription>
+          <CardDescription>Choose the default model and transcription language.</CardDescription>
           <CardAction>
             <Badge variant="outline">Model: {resolvedDefaultModelId ?? "Not set"}</Badge>
           </CardAction>
@@ -365,7 +365,7 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
-            <Mic2 />
+            <Mic2 className="size-4 text-muted-foreground" />
             Audio Input Settings
           </CardTitle>
           <CardDescription>Select the preferred capture device.</CardDescription>
@@ -412,18 +412,22 @@ export function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b pb-4">
           <CardTitle className="inline-flex items-center gap-2">
-            <Settings2 />
-            Automation Settings
+            <Settings2 className="size-4 text-muted-foreground" />
+            Automation
           </CardTitle>
-          <CardDescription>Toggle transcript post-processing options and startup behavior.</CardDescription>
+          <CardDescription>Configure transcript behavior, cleanup policy, and startup defaults.</CardDescription>
           <CardAction>
             <Badge variant="outline">{automationEnabledCount} enabled</Badge>
           </CardAction>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
+            <div className="pt-1">
+              <p className="text-sm font-medium">Transcription behavior</p>
+              <p className="text-xs text-muted-foreground">Controls that affect translation, retention, and clipboard behavior.</p>
+            </div>
             <div className="flex items-start justify-between gap-4 py-1">
               <div className="flex flex-col gap-1">
               <Label htmlFor="translate">Translate to English</Label>
@@ -473,6 +477,10 @@ export function SettingsPage() {
               <Switch id="cleanup-enabled" checked={settings.cleanupEnabled} onCheckedChange={onCleanupEnabledChange} />
             </div>
             <Separator />
+            <div>
+              <p className="text-sm font-medium">Cleanup pipeline</p>
+              <p className="text-xs text-muted-foreground">Tune live cleanup, finalize mode, and timeout behavior.</p>
+            </div>
             <div className="flex items-start justify-between gap-4 py-1">
               <div className="flex flex-col gap-1">
               <Label htmlFor="live-cleanup-enabled">Live cleanup</Label>
@@ -538,6 +546,10 @@ export function SettingsPage() {
               </div>
             </div>
             <Separator />
+            <div>
+              <p className="text-sm font-medium">Startup</p>
+              <p className="text-xs text-muted-foreground">Configure app launch behavior for your device.</p>
+            </div>
             <div className="flex items-start justify-between gap-4 py-1">
               <div className="flex flex-col gap-1">
               <Label htmlFor="start-at-login">Start at login</Label>
@@ -562,10 +574,10 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
-            <ShieldCheck />
+            <ShieldCheck className="size-4 text-muted-foreground" />
             Connectivity Diagnostics
           </CardTitle>
-          <CardDescription>Connectivity and cache diagnostics for model downloads and catalog refresh.</CardDescription>
+          <CardDescription>Check network reachability and model catalog cache health.</CardDescription>
           <CardAction>
             <Badge variant="outline">Cache: {cacheDiagnostics?.status ?? "unknown"}</Badge>
           </CardAction>
@@ -633,10 +645,10 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
-            <Database />
+            <Database className="size-4 text-muted-foreground" />
             Storage Settings
           </CardTitle>
-          <CardDescription>Review the active app data directory.</CardDescription>
+          <CardDescription>Review where app data and settings are stored.</CardDescription>
           <CardAction>
             <Badge variant="outline">Local settings</Badge>
           </CardAction>
