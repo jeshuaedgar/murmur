@@ -109,6 +109,30 @@ function buildUserMessage(error: unknown, fallbackTitle: string) {
     };
   }
 
+  if (parsed.code === "unsupported_media") {
+    return {
+      title: "Unsupported audio format.",
+      description: "Choose a WAV, MP3, or M4A file and try again.",
+      statusMessage: "Unsupported audio format. Use WAV, MP3, or M4A.",
+    };
+  }
+
+  if (parsed.code === "audio_decode_error") {
+    return {
+      title: "Audio file could not be decoded.",
+      description: "The file may be corrupted or encoded in an unsupported variant.",
+      statusMessage: "Audio file could not be decoded.",
+    };
+  }
+
+  if (parsed.code === "missing_codec") {
+    return {
+      title: "Audio codec is unavailable.",
+      description: "This build cannot decode that file's codec. Try exporting as WAV and import again.",
+      statusMessage: "Audio codec unavailable in this build.",
+    };
+  }
+
   const title = toSentence(rawTitle || fallbackTitle);
   const description = rawDescription ? toSentence(rawDescription) : undefined;
   return {

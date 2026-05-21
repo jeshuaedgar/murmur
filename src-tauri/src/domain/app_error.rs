@@ -13,6 +13,9 @@ pub struct AppErrorPayload {
 pub enum AppError {
     NotFound(String),
     InvalidInput(String),
+    UnsupportedMedia(String),
+    AudioDecode(String),
+    MissingCodec(String),
     Io(String),
     Network(String),
     Engine(String),
@@ -24,6 +27,9 @@ impl AppError {
         match self {
             Self::NotFound(_) => "not_found",
             Self::InvalidInput(_) => "invalid_input",
+            Self::UnsupportedMedia(_) => "unsupported_media",
+            Self::AudioDecode(_) => "audio_decode_error",
+            Self::MissingCodec(_) => "missing_codec",
             Self::Io(_) => "io_error",
             Self::Network(_) => "network_error",
             Self::Engine(_) => "engine_error",
@@ -45,6 +51,9 @@ impl Display for AppError {
         match self {
             Self::NotFound(msg)
             | Self::InvalidInput(msg)
+            | Self::UnsupportedMedia(msg)
+            | Self::AudioDecode(msg)
+            | Self::MissingCodec(msg)
             | Self::Io(msg)
             | Self::Network(msg)
             | Self::Engine(msg)

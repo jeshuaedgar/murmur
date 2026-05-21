@@ -46,7 +46,7 @@ export function useHomeActions({
     );
   }, [isRecording, startRecording, stopRecordingAndTranscribe, withActionErrorHandling]);
 
-  const onImportWav = useCallback(async () => {
+  const onImportAudio = useCallback(async () => {
     await withActionErrorHandling(() => startFileTranscription(), "File transcription failed");
   }, [startFileTranscription, withActionErrorHandling]);
 
@@ -70,7 +70,7 @@ export function useHomeActions({
 
   return {
     onRecordToggle,
-    onImportWav,
+    onImportAudio,
     onCancelTranscription,
     onClearTranscript,
   };

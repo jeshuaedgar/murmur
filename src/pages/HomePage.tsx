@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, Eraser, FileAudio2, House, Mic, Square } from "lucide-react";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Copy, Eraser, FileAudio2, FileCode2, FileJson2, FileText, House, Mic, Square } from "lucide-react";
 import { useState } from "react";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAppState } from "@/context/app-state";
 import { useHomeActions } from "@/features/transcription/hooks/use-home-actions";
 import { useHomeViewModel } from "@/features/transcription/hooks/use-home-view-model";
+import {
+  formatTranscriptAsJson,
+  formatTranscriptAsMd,
+  formatTranscriptAsTxt,
+} from "@/features/transcription/lib/export-formatters";
+import { saveTranscriptExport } from "@/lib/export/save-transcript";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
+import type { ExportTranscriptInput } from "@/lib/types/export";
+import { toastError, toastSuccess, toastWarning } from "@/lib/toast";
 
 export function HomePage() {
   const {
@@ -20,6 +29,7 @@ export function HomePage() {
     activeTranscriptionTaskId,
     transcript,
     rawTranscript,
+    cleanupStrategy,
     setLiveMode,
     setStatus,
     setTranscript,
@@ -32,7 +42,7 @@ export function HomePage() {
     copyText,
   } = useAppState();
 
-  const { onRecordToggle, onImportWav, onCancelTranscription, onClearTranscript } = useHomeActions({
+  const { onRecordToggle, onImportAudio, onCancelTranscription, onClearTranscript } = useHomeActions({
     isRecording,
     activeTranscriptionTaskId,
     setStatus,
@@ -52,8 +62,47 @@ export function HomePage() {
     copyText,
   });
   const [showRawTranscript, setShowRawTranscript] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<"txt" | "md" | "json" | null>(null);
   const visibleTranscript =
     settings.cleanupShowRawToggle && showRawTranscript ? rawTranscript : transcript;
+  const hasAnyTranscript = Boolean((transcript || "").trim() || (rawTranscript || "").trim());
+
+  async function exportTranscript(format: "txt" | "md" | "json") {
+    if (exportingFormat) return;
+    if (!hasAnyTranscript) {
+      toastWarning("Nothing to export", "Transcript is empty.");
+      return;
+    }
+
+    setExportingFormat(format);
+    try {
+      const payload: ExportTranscriptInput = {
+        rawText: rawTranscript,
+        cleanedText: transcript,
+        modelId: settings.defaultModelId,
+        language: settings.language,
+        translated: settings.translate,
+        sourceType: "unknown",
+        createdAt: new Date().toISOString(),
+        cleanupStrategy,
+      };
+
+      const content =
+        format === "txt"
+          ? formatTranscriptAsTxt(payload, settings.cleanupShowRawToggle && showRawTranscript)
+          : format === "md"
+            ? formatTranscriptAsMd(payload)
+            : formatTranscriptAsJson(payload);
+
+      const saved = await saveTranscriptExport(content, format);
+      if (!saved) return;
+      toastSuccess(`Transcript exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      toastError(error, `Failed to export ${format.toUpperCase()}`);
+    } finally {
+      setExportingFormat(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -70,7 +119,7 @@ export function HomePage() {
       <Card>
         <CardHeader>
           <CardTitle>Capture Controls</CardTitle>
-          <CardDescription>Start recording audio or import an existing WAV file.</CardDescription>
+          <CardDescription>Start recording audio or import an existing WAV, MP3, or M4A file.</CardDescription>
           <CardAction>
             <Badge variant={isRecording ? "secondary" : "outline"}>
               {isRecording ? "Recording active" : "Idle"}
@@ -98,10 +147,10 @@ export function HomePage() {
             <Button
               variant="outline"
               disabled={isBusy}
-              onClick={() => void onImportWav()}
+              onClick={() => void onImportAudio()}
             >
               <FileAudio2 />
-              Import WAV
+              Import Audio
             </Button>
 
             {isBusy && (
@@ -137,6 +186,32 @@ export function HomePage() {
                 <Copy />
                 Copy
               </Button>
+              <ButtonGroup aria-label="Export transcript formats" className="bg-transparent">
+                <Button
+                  variant="ghost"
+                  onClick={() => void exportTranscript("txt")}
+                  disabled={!hasAnyTranscript || Boolean(exportingFormat)}
+                >
+                  {exportingFormat === "txt" ? <Spinner /> : <FileText />}
+                  TXT
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => void exportTranscript("md")}
+                  disabled={!hasAnyTranscript || Boolean(exportingFormat)}
+                >
+                  {exportingFormat === "md" ? <Spinner /> : <FileCode2 />}
+                  MD
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => void exportTranscript("json")}
+                  disabled={!hasAnyTranscript || Boolean(exportingFormat)}
+                >
+                  {exportingFormat === "json" ? <Spinner /> : <FileJson2 />}
+                  JSON
+                </Button>
+              </ButtonGroup>
               {settings.cleanupShowRawToggle && (
                 <Button
                   variant="outline"

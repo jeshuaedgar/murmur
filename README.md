@@ -10,7 +10,7 @@ Local-first, cross-platform speech-to-text desktop app using Tauri 2 + Rust + Ty
 - Download progress events and install state checks.
 - Models stored in platform app data under `models/whisper`.
 - Offline reuse of installed models.
-- WAV file transcription locally.
+- WAV/MP3/M4A file transcription locally.
 - Microphone recording path (browser capture -> live chunk transcription + final local WAV transcription).
 - Audio input device selection in Settings (persisted).
 - File transcription job progress events with cancellation.
@@ -74,7 +74,7 @@ Models are stored in app data and managed automatically:
 
 ## Known MVP limitations
 
-- Audio import is WAV-first. MP3/M4A transcoding is not yet added.
+- Some uncommon MP3/M4A codec variants may be unavailable depending on build codec support. Re-exporting to WAV is a reliable fallback.
 - Audio input device enumeration is currently a placeholder.
 - Download resume support is not implemented yet.
 - Global hotkey is not implemented yet.

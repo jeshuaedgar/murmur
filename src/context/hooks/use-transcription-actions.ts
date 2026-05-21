@@ -260,9 +260,12 @@ export function useTranscriptionActions({
 
   async function startFileTranscription() {
     requireTauri("File transcription");
-    const file = await open({ multiple: false });
+    const file = await open({
+      multiple: false,
+      filters: [{ name: "Audio", extensions: ["wav", "mp3", "m4a"] }],
+    });
     if (!file || Array.isArray(file)) {
-      toastInfo("Import canceled", "No WAV file was selected.");
+      toastInfo("Import canceled", "No audio file was selected.");
       return;
     }
 
