@@ -1,0 +1,79 @@
+:root {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: #15202b;
+  background: radial-gradient(circle at top left, #f6f9ff, #eef5f2 55%, #ffffff);
+}
+body {
+  margin: 0;
+}
+#app {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+nav {
+  display: flex;
+  gap: 8px;
+}
+button {
+  border: 1px solid #c8d4cf;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+button.active {
+  background: #003b2f;
+  color: #fff;
+}
+main section {
+  margin-top: 16px;
+  background: #fff;
+  border: 1px solid #d9e4df;
+  border-radius: 14px;
+  padding: 18px;
+}
+textarea {
+  width: 100%;
+  margin-top: 12px;
+}
+.model-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.card {
+  border: 1px solid #d8e3de;
+  border-radius: 10px;
+  padding: 12px;
+}
+.pill {
+  font-size: 12px;
+  border-radius: 999px;
+  background: #e8f6ee;
+  border: 1px solid #9bcbae;
+  padding: 3px 8px;
+}
+.actions,
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.status,
+.badge {
+  margin-bottom: 8px;
+}
+label {
+  display: block;
+  margin: 10px 0;
+}
+input,
+select {
+  margin-left: 6px;
+}
