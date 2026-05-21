@@ -1,8 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { FolderKanban, House, Settings2 } from "lucide-react";
+import { Boxes, House, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+
+const murmurLogoUrl = new URL("./assets/murmur-logo.svg", import.meta.url).href;
 
 function NavButton({
 	to,
@@ -21,7 +23,7 @@ function NavButton({
 	return (
 		<Button asChild variant={isActive ? "secondary" : "ghost"} className="min-w-24">
 			<Link to={to} className="inline-flex items-center gap-1.5">
-				<Icon className="size-4" />
+				<Icon />
 				{label}
 			</Link>
 		</Button>
@@ -38,8 +40,8 @@ export default function App({ children }: { children: ReactNode }) {
 			<header className="sticky top-0 z-10">
 				<div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
 					<div className="flex items-center gap-3">
-						<div>
-							<p>Murmur</p>
+						<div className="flex items-center gap-3">
+							<img src={murmurLogoUrl} alt="Murmur" className="h-12 w-auto" />
 							<p className="mt-1">
 								Offline-first transcription
 							</p>
@@ -48,7 +50,7 @@ export default function App({ children }: { children: ReactNode }) {
 					</div>
 					<nav aria-label="Primary" className="flex flex-wrap gap-1 p-1">
 						<NavButton to="/home" label="Home" icon={House} />
-						<NavButton to="/models" label="Models" icon={FolderKanban} />
+						<NavButton to="/models" label="Models" icon={Boxes} />
 						<NavButton to="/settings" label="Settings" icon={Settings2} />
 					</nav>
 				</div>
