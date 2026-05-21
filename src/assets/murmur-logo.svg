@@ -1,18 +1,29 @@
-<svg width="760" height="256" viewBox="0 0 760 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="612" height="192" viewBox="0 0 612 192" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Murmur logo</title>
-  <desc id="desc">Murmur logo with a waveform lowercase m icon, a text cursor, and an elegant monospaced wordmark.</desc>
+  <desc id="desc">Murmur logo with a golden lowercase m waveform app icon and a dark wordmark.</desc>
   <defs>
-    <clipPath id="murmur-logo-mark-clip">
-      <rect width="256" height="256" rx="54"/>
-    </clipPath>
+    <linearGradient id="murmur-logo-amber" x1="15" x2="160.5" y1="84" y2="84" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2AE49"/>
+      <stop offset=".38" stop-color="#FFD577"/>
+      <stop offset=".72" stop-color="#F5BA55"/>
+      <stop offset="1" stop-color="#E99F3E"/>
+    </linearGradient>
+    <radialGradient id="murmur-logo-tile" cx="0" cy="0" r="1" gradientTransform="matrix(136.5 143.25 -143.25 136.5 61.5 43.5)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D3437"/>
+      <stop offset=".62" stop-color="#252B2E"/>
+      <stop offset="1" stop-color="#1F2427"/>
+    </radialGradient>
+    <filter id="murmur-logo-shadow" x="-9" y="-9" width="210" height="210" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2.25" stdDeviation="3" flood-color="#15191B" flood-opacity=".24"/>
+    </filter>
   </defs>
-  <g clip-path="url(#murmur-logo-mark-clip)">
-    <rect width="256" height="256" rx="54" fill="#202528"/>
-    <path d="M-30 166H38C59 166 76 149 76 128V96C76 65 100 42 131 42C162 42 186 65 186 96V166M186 166V100C186 76 204 59 226 59C248 59 266 76 266 100V128C266 149 283 166 304 166H330" stroke="#F4B755" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M209 76H243M226 76V188M209 188H243" stroke="#F2F5F2" stroke-width="9" stroke-linecap="round"/>
-    <path d="M226 99V165" stroke="#F2F5F2" stroke-width="3.5" stroke-linecap="round" opacity=".5"/>
-    <rect x="1.5" y="1.5" width="253" height="253" rx="52.5" stroke="#F8F5ED" stroke-opacity=".08" stroke-width="3"/>
+  <rect width="192" height="192" rx="43.5" fill="url(#murmur-logo-tile)"/>
+  <g filter="url(#murmur-logo-shadow)">
+    <path d="M-18 108.75H29.25C40.425 108.75 46.5 102.675 46.5 91.5V72.375C46.5 48.375 61.05 36 78.9 36C94.8 36 106.95 46.2 111.9 64.35C116.55 46.2 128.4 36 144.525 36C158.25 36 137.25 47.85 137.25 72.375V91.5C137.25 102.675 131.25 108.75 125.25 108.75H154.5" stroke="url(#murmur-logo-amber)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M112.125 66V107.625" stroke="url(#murmur-logo-amber)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M160.5 60H179.25M169.875 60V132M160.5 132H179.25" stroke="#F7F6F1" stroke-width="5.25" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M169.875 71.25V120.75" stroke="#C8CCD0" stroke-width="1.875" stroke-linecap="round" opacity=".65"/>
   </g>
-  <text x="302" y="149" fill="#202528" font-family="'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', 'IBM Plex Mono', Menlo, Consolas, monospace" font-size="96" font-weight="500" letter-spacing="0">Murmur</text>
-  <path d="M308 182H700" stroke="#F4B755" stroke-width="8" stroke-linecap="round"/>
+  <rect x="1.125" y="1.125" width="189.75" height="189.75" rx="42.375" stroke="#FFF8EA" stroke-opacity=".08" stroke-width="2.25"/>
+  <text x="232" y="122" fill="#202528" font-family="Geist, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="76" font-weight="600" letter-spacing="0">Murmur</text>
 </svg>

@@ -1,16 +1,28 @@
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">Murmur mark</title>
-  <desc id="desc">A charcoal rounded-square icon with an amber waveform shaped like a lowercase m and a white text cursor.</desc>
+  <title id="title">Murmur app icon</title>
+  <desc id="desc">A charcoal rounded-square icon with a golden lowercase m waveform and a white text cursor.</desc>
   <defs>
-    <clipPath id="murmur-mark-clip">
-      <rect width="256" height="256" rx="54"/>
-    </clipPath>
+    <linearGradient id="murmur-amber" x1="20" x2="214" y1="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2AE49"/>
+      <stop offset=".38" stop-color="#FFD577"/>
+      <stop offset=".72" stop-color="#F5BA55"/>
+      <stop offset="1" stop-color="#E99F3E"/>
+    </linearGradient>
+    <radialGradient id="murmur-tile" cx="0" cy="0" r="1" gradientTransform="matrix(182 191 -191 182 82 58)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D3437"/>
+      <stop offset=".62" stop-color="#252B2E"/>
+      <stop offset="1" stop-color="#1F2427"/>
+    </radialGradient>
+    <filter id="soft-shadow" x="-12" y="-12" width="280" height="280" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#15191B" flood-opacity=".24"/>
+    </filter>
   </defs>
-  <g clip-path="url(#murmur-mark-clip)">
-    <rect width="256" height="256" rx="54" fill="#202528"/>
-    <path d="M-30 166H38C59 166 76 149 76 128V96C76 65 100 42 131 42C162 42 186 65 186 96V166M186 166V100C186 76 204 59 226 59C248 59 266 76 266 100V128C266 149 283 166 304 166H330" stroke="#F4B755" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M209 76H243M226 76V188M209 188H243" stroke="#F2F5F2" stroke-width="9" stroke-linecap="round"/>
-    <path d="M226 99V165" stroke="#F2F5F2" stroke-width="3.5" stroke-linecap="round" opacity=".5"/>
-    <rect x="1.5" y="1.5" width="253" height="253" rx="52.5" stroke="#F8F5ED" stroke-opacity=".08" stroke-width="3"/>
+  <rect width="256" height="256" rx="58" fill="url(#murmur-tile)"/>
+  <g filter="url(#soft-shadow)">
+    <path d="M-24 145H39C53.9 145 62 136.9 62 122V96.5C62 64.5 81.4 48 105.2 48C126.4 48 142.6 61.6 149.2 85.8C155.4 61.6 171.2 48 192.7 48C211 48 183 63.8 183 96.5V122C183 136.9 175 145 167 145H206" stroke="url(#murmur-amber)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M149.5 88V143.5" stroke="url(#murmur-amber)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M214 80H239M226.5 80V176M214 176H239" stroke="#F7F6F1" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M226.5 95V161" stroke="#C8CCD0" stroke-width="2.5" stroke-linecap="round" opacity=".65"/>
   </g>
+  <rect x="1.5" y="1.5" width="253" height="253" rx="56.5" stroke="#FFF8EA" stroke-opacity=".08" stroke-width="3"/>
 </svg>

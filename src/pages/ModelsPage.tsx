@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,91 +24,21 @@ import {
 } from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
 import { useAppState } from "@/context/app-state";
-import { api } from "@/lib/api/tauri";
-import { getErrorMessage } from "@/lib/toast";
-import { isTauriRuntime } from "@/lib/runtime/tauri";
+import { useModelConnectivity } from "@/features/models/hooks/use-model-connectivity";
+import { useModelActions } from "@/features/models/lib/model-actions";
+import { getModelCardState, getModelProgressByModelId } from "@/features/models/lib/model-view-state";
 
 export function ModelsPage() {
   const { models, installedById, downloadProgress, downloadModel, deleteModel } = useAppState();
-  const [pendingRemoveModelId, setPendingRemoveModelId] = useState<string | null>(null);
-  const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(false);
-  const [connectivityStatus, setConnectivityStatus] = useState<"unknown" | "online" | "offline">("unknown");
-  const [connectivityDetail, setConnectivityDetail] = useState("");
-
-  const pendingModel = useMemo(
-    () => models.find((model) => model.id === pendingRemoveModelId) ?? null,
-    [models, pendingRemoveModelId],
-  );
-
-  useEffect(() => {
-    const markOffline = () => {
-      setConnectivityStatus("offline");
-      setConnectivityDetail("No internet connection detected.");
-    };
-    const markUnknown = () => {
-      setConnectivityStatus("unknown");
-      setConnectivityDetail("");
-    };
-
-    if (!navigator.onLine) {
-      markOffline();
-    }
-
-    window.addEventListener("offline", markOffline);
-    window.addEventListener("online", markUnknown);
-    return () => {
-      window.removeEventListener("offline", markOffline);
-      window.removeEventListener("online", markUnknown);
-    };
-  }, []);
-
-  async function confirmRemove() {
-    if (!pendingRemoveModelId) {
-      return;
-    }
-    await deleteModel(pendingRemoveModelId).catch(() => undefined);
-    setPendingRemoveModelId(null);
-  }
-
-  async function checkConnectivity() {
-    setIsCheckingConnectivity(true);
-    try {
-      if (!navigator.onLine) {
-        setConnectivityStatus("offline");
-        setConnectivityDetail("No internet connection detected.");
-        return false;
-      }
-      if (!isTauriRuntime) {
-        setConnectivityStatus("online");
-        setConnectivityDetail("Browser reports online.");
-        return true;
-      }
-
-      const status = await api.checkHuggingFaceConnectivity();
-      const reachable = status.online && status.huggingfaceReachable;
-      setConnectivityStatus(reachable ? "online" : "offline");
-      setConnectivityDetail(
-        reachable
-          ? "Connected to Hugging Face."
-          : getErrorMessage(status.detail, "No internet or Hugging Face is unreachable."),
-      );
-      return reachable;
-    } catch (error) {
-      setConnectivityStatus("offline");
-      setConnectivityDetail(getErrorMessage(error, "No internet or Hugging Face is unreachable."));
-      return false;
-    } finally {
-      setIsCheckingConnectivity(false);
-    }
-  }
-
-  async function handleDownload(modelId: string) {
-    const isConnected = await checkConnectivity();
-    if (!isConnected) {
-      return;
-    }
-    await downloadModel(modelId);
-  }
+  const progressByModelId = useMemo(() => getModelProgressByModelId(downloadProgress), [downloadProgress]);
+  const { connectivityStatus, connectivityDetail, isCheckingConnectivity, checkConnectivity } = useModelConnectivity();
+  const { pendingRemoveModelId, pendingModel, openRemoveConfirmation, closeRemoveConfirmation, confirmRemove, handleDownload } =
+    useModelActions({
+      models,
+      downloadModel,
+      deleteModel,
+      checkConnectivity,
+    });
 
   return (
     <div className="space-y-4">
@@ -131,24 +61,20 @@ export function ModelsPage() {
       <ItemGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {models.map((model) => {
           const installedModel = installedById.get(model.id);
-          const progress = Array.from(downloadProgress.values()).find((item) => item.modelId === model.id);
-          const progressPct = progress?.progressPct;
-          const hasProgress = typeof progressPct === "number";
-          const progressValue = hasProgress ? Math.max(0, Math.min(progressPct, 100)) : 0;
-          const isInstalled = Boolean(installedModel?.installed);
-          const isDownloading = hasProgress && progressValue < 100;
-          const actionLabel = isInstalled ? "Reinstall model" : "Install model";
-          const statusLabel = isDownloading
-            ? "Downloading"
-            : isInstalled
-              ? "Installed locally"
-              : "Not installed";
-          const statusBadgeVariant = isDownloading
-            ? "secondary"
-            : isInstalled
-              ? "default"
-              : "outline";
-          const installButtonVariant = isInstalled ? "secondary" : "default";
+          const progress = progressByModelId.get(model.id);
+          const {
+            progressValue,
+            hasProgress,
+            isInstalled,
+            isDownloading,
+            actionLabel,
+            statusLabel,
+            statusBadgeVariant,
+            installButtonVariant,
+          } = getModelCardState({
+            installedModel,
+            progress,
+          });
 
           return (
             <Item
@@ -200,7 +126,7 @@ export function ModelsPage() {
                   <Button
                     variant="destructive"
                     disabled={!isInstalled || isDownloading}
-                    onClick={() => setPendingRemoveModelId(model.id)}
+                    onClick={() => openRemoveConfirmation(model.id)}
                   >
                     <Trash2 />
                     Remove local model
@@ -212,7 +138,7 @@ export function ModelsPage() {
         })}
       </ItemGroup>
 
-      <AlertDialog open={Boolean(pendingRemoveModelId)} onOpenChange={(open) => !open && setPendingRemoveModelId(null)}>
+      <AlertDialog open={Boolean(pendingRemoveModelId)} onOpenChange={(open) => !open && closeRemoveConfirmation()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove local model?</AlertDialogTitle>

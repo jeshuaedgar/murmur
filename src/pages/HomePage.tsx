@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppState } from "@/context/app-state";
-import { getErrorMessage, toastError } from "@/lib/toast";
+import { useHomeActions } from "@/features/transcription/hooks/use-home-actions";
+import { useHomeViewModel } from "@/features/transcription/hooks/use-home-view-model";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
 
 export function HomePage() {
@@ -27,7 +28,23 @@ export function HomePage() {
     copyText,
   } = useAppState();
 
-  const isBusy = Boolean(activeTranscriptionTaskId);
+  const { onRecordToggle, onImportWav, onCancelTranscription, onClearTranscript } = useHomeActions({
+    isRecording,
+    activeTranscriptionTaskId,
+    setStatus,
+    setTranscript,
+    startRecording,
+    stopRecordingAndTranscribe,
+    startFileTranscription,
+    cancelTranscription,
+  });
+  const { isBusy, showRecordingBadge, recordButtonLabel, onCopyTranscript, onTranscriptChange } = useHomeViewModel({
+    isRecording,
+    activeTranscriptionTaskId,
+    transcript,
+    setTranscript,
+    copyText,
+  });
 
   return (
     <div className="space-y-4">
@@ -35,7 +52,7 @@ export function HomePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">Model: {settings.defaultModelId}</Badge>
           <Badge>{status}</Badge>
-          {isRecording && <Badge variant="outline">Recording</Badge>}
+          {showRecordingBadge && <Badge variant="outline">Recording</Badge>}
         </div>
         <h1 className="inline-flex items-center gap-2">
           <House />
@@ -51,22 +68,17 @@ export function HomePage() {
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              onClick={() => {
-                void (isRecording ? stopRecordingAndTranscribe() : startRecording()).catch((error) => {
-                  setStatus(getErrorMessage(error, "Recording failed"));
-                  toastError(error, "Recording failed");
-                });
-              }}
+              onClick={() => void onRecordToggle()}
             >
               {isRecording ? (
                 <>
                   <Square />
-                  Stop & Transcribe
+                  {recordButtonLabel}
                 </>
               ) : (
                 <>
                   <Mic />
-                  Start Recording
+                  {recordButtonLabel}
                 </>
               )}
             </Button>
@@ -74,12 +86,7 @@ export function HomePage() {
             <Button
               variant="outline"
               disabled={isBusy}
-              onClick={() =>
-                void startFileTranscription().catch((error) => {
-                  setStatus(getErrorMessage(error, "File transcription failed"));
-                  toastError(error, "File transcription failed");
-                })
-              }
+              onClick={() => void onImportWav()}
             >
               <FileAudio2 />
               Import WAV
@@ -88,12 +95,7 @@ export function HomePage() {
             {isBusy && (
               <Button
                 variant="outline"
-                onClick={() =>
-                  void cancelTranscription(activeTranscriptionTaskId!).catch((error) => {
-                    setStatus(getErrorMessage(error, "Failed to cancel transcription"));
-                    toastError(error, "Failed to cancel transcription");
-                  })
-                }
+                onClick={() => void onCancelTranscription()}
               >
                 <CircleX />
                 Cancel Transcription
@@ -120,11 +122,11 @@ export function HomePage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => void copyText(transcript)}>
+            <Button variant="secondary" onClick={() => void onCopyTranscript()}>
               <Copy />
               Copy
             </Button>
-            <Button variant="secondary" onClick={() => setTranscript("")}>
+            <Button variant="secondary" onClick={onClearTranscript}>
               <Eraser />
               Clear
             </Button>
@@ -133,7 +135,7 @@ export function HomePage() {
             aria-label="Transcript text"
             rows={16}
             value={transcript}
-            onChange={(event) => setTranscript(event.target.value)}
+            onChange={(event) => onTranscriptChange(event.target.value)}
           />
         </CardContent>
       </Card>

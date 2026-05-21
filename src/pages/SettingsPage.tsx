@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useAppState } from "@/context/app-state";
+import { useSettingsPageLogic } from "@/features/settings/hooks/use-settings-page-logic";
 
 export function SettingsPage() {
   const {
@@ -24,6 +25,23 @@ export function SettingsPage() {
     setSettings,
     saveSettings,
   } = useAppState();
+  const {
+    modelOptions,
+    browserInputOptions,
+    audioInputsSummary,
+    onDefaultModelChange,
+    onLanguageChange,
+    onAudioInputChange,
+    onTranslateChange,
+    onAutoCopyChange,
+    onSaveSettings,
+  } = useSettingsPageLogic({
+    models,
+    browserAudioInputs,
+    backendAudioInputs,
+    setSettings,
+    saveSettings,
+  });
 
   return (
     <div className="space-y-4">
@@ -45,14 +63,14 @@ export function SettingsPage() {
             <Label htmlFor="default-model">Default model</Label>
             <Select
               value={settings.defaultModelId}
-              onValueChange={(value) => setSettings((prev) => ({ ...prev, defaultModelId: value }))}
+              onValueChange={onDefaultModelChange}
             >
               <SelectTrigger id="default-model" className="w-full">
                 <SelectValue placeholder="Select model" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {models.map((model) => (
+                  {modelOptions.map((model) => (
                     <SelectItem key={model.id} value={model.id}>
                       {model.name}
                     </SelectItem>
@@ -67,7 +85,7 @@ export function SettingsPage() {
             <Input
               id="language"
               value={settings.language}
-              onChange={(event) => setSettings((prev) => ({ ...prev, language: event.target.value }))}
+              onChange={(event) => onLanguageChange(event.target.value)}
             />
           </div>
         </CardContent>
@@ -86,14 +104,14 @@ export function SettingsPage() {
             <Label htmlFor="audio-input">Audio input device</Label>
             <Select
               value={settings.audioInputDeviceId ?? ""}
-              onValueChange={(value) => setSettings((prev) => ({ ...prev, audioInputDeviceId: value || null }))}
+              onValueChange={onAudioInputChange}
             >
               <SelectTrigger id="audio-input" className="w-full">
                 <SelectValue placeholder="Select input" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {browserAudioInputs.map((device) => (
+                  {browserInputOptions.map((device) => (
                     <SelectItem key={device.id} value={device.id}>
                       {device.label}
                     </SelectItem>
@@ -102,9 +120,7 @@ export function SettingsPage() {
               </SelectContent>
             </Select>
           </div>
-          <p>
-            Detected by browser: {browserAudioInputs.length} • Detected by backend: {backendAudioInputs.length}
-          </p>
+          <p>{audioInputsSummary}</p>
         </CardContent>
       </Card>
 
@@ -118,7 +134,7 @@ export function SettingsPage() {
             <Switch
               id="translate"
               checked={settings.translate}
-              onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, translate: checked }))}
+              onCheckedChange={onTranslateChange}
             />
             <Label htmlFor="translate">Translate to English</Label>
           </div>
@@ -127,7 +143,7 @@ export function SettingsPage() {
             <Switch
               id="autocopy"
               checked={settings.autoCopy}
-              onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, autoCopy: checked }))}
+              onCheckedChange={onAutoCopyChange}
             />
             <Label htmlFor="autocopy">Auto-copy transcript</Label>
           </div>
@@ -143,7 +159,7 @@ export function SettingsPage() {
           <p>
             App data: <code>{appDataDir}</code>
           </p>
-          <Button onClick={() => void saveSettings().catch(() => undefined)}>
+          <Button onClick={() => void onSaveSettings()}>
             <Save />
             Save settings
           </Button>
