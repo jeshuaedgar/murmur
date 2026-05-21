@@ -171,7 +171,7 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2 text-2xl md:text-3xl">
             <Settings2 className="size-5" />
-            Preferences
+            Settings
           </CardTitle>
           <CardDescription>Configure model, language, audio input, and automation behavior.</CardDescription>
         </CardHeader>

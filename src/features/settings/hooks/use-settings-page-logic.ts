@@ -157,7 +157,7 @@ export function useSettingsPageLogic({
     [setSettings],
   );
   const onSaveSettings = useCallback(async () => {
-    await saveSettings().catch(() => undefined);
+    await saveSettings();
   }, [saveSettings]);
   const onHistoryRetentionDaysChange = useCallback(
     (value: string) => setSettings(updateHistoryRetentionDays(value.trim() ? Number(value) || null : null)),
