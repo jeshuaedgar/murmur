@@ -25,6 +25,8 @@ pub fn run() {
             commands::transcription::transcribe_file,
             commands::transcription::transcribe_recording,
             commands::transcription::transcribe_pcm,
+            commands::transcription::start_transcription_file,
+            commands::transcription::cancel_transcription,
             commands::audio::get_audio_inputs,
         ])
         .run(tauri::generate_context!())
