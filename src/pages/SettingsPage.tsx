@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useBlocker } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mic2, Save, Settings2 } from "lucide-react";
+import { Database, Gauge, Mic2, PlugZap, Save, Settings2, ShieldCheck, Sparkles } from "lucide-react";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,13 +18,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppState } from "@/context/app-state";
 import { useModelConnectivity } from "@/features/models/hooks/use-model-connectivity";
 import { useSettingsPageLogic } from "@/features/settings/hooks/use-settings-page-logic";
 import { updateDefaultModelId } from "@/features/settings/lib/settings-updaters";
 import { api } from "@/lib/api/tauri";
-import { toastError, toastSuccess, toastWarning } from "@/lib/toast";
+import { toastInfo } from "@/lib/toast";
 
 export function SettingsPage() {
   const {
@@ -36,6 +39,29 @@ export function SettingsPage() {
     setSettings,
     saveSettings,
   } = useAppState();
+
+  const [savedSettingsSnapshot, setSavedSettingsSnapshot] = useState<string | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [settingsStatusMessage, setSettingsStatusMessage] = useState("");
+  const [hasShownUnsavedToast, setHasShownUnsavedToast] = useState(false);
+
+  const isSettingsLoading = models.length === 0;
+
+  const setTrackedSettings = useCallback<typeof setSettings>(
+    (updater) => {
+      setSettings((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        if (JSON.stringify(prev) !== JSON.stringify(next)) {
+          setHasInteracted(true);
+        }
+        return next;
+      });
+    },
+    [setSettings],
+  );
+
   const {
     modelOptionsByLab,
     resolvedDefaultModelId,
@@ -62,9 +88,18 @@ export function SettingsPage() {
     browserAudioInputs,
     backendAudioInputs,
     defaultModelId: settings.defaultModelId,
-    setSettings,
+    setSettings: setTrackedSettings,
     saveSettings,
   });
+  const currentSettingsSnapshot = useMemo(() => {
+    const normalizedDefaultModelId =
+      installedById.get(settings.defaultModelId)?.installed || !resolvedDefaultModelId
+        ? settings.defaultModelId
+        : resolvedDefaultModelId;
+    return JSON.stringify({ ...settings, defaultModelId: normalizedDefaultModelId });
+  }, [installedById, resolvedDefaultModelId, settings]);
+  const isDirty = savedSettingsSnapshot !== null && currentSettingsSnapshot !== savedSettingsSnapshot;
+
   const {
     connectivityStatus,
     connectivityDetail,
@@ -77,6 +112,10 @@ export function SettingsPage() {
   const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   const isCacheActionBusy = isClearingCache || isRefreshingCatalog;
+  const cacheClearToastId = "settings-cache-clear";
+  const catalogRefreshToastId = "settings-catalog-refresh";
+  const diagnosticsToastId = "settings-run-diagnostics";
+
   const automationEnabledCount = [
     settings.translate,
     settings.autoCopy,
@@ -108,6 +147,22 @@ export function SettingsPage() {
   }, [cacheDiagnostics]);
 
   useEffect(() => {
+    if (!hasInteracted) {
+      setSavedSettingsSnapshot(currentSettingsSnapshot);
+    }
+  }, [currentSettingsSnapshot, hasInteracted]);
+
+  useEffect(() => {
+    if (!isDirty || !hasInteracted) {
+      setHasShownUnsavedToast(false);
+      return;
+    }
+    if (hasShownUnsavedToast) return;
+    toastInfo("Unsaved changes", "Remember to save your Settings changes.");
+    setHasShownUnsavedToast(true);
+  }, [hasInteracted, hasShownUnsavedToast, isDirty]);
+
+  useEffect(() => {
     if (!resolvedDefaultModelId || resolvedDefaultModelId === settings.defaultModelId) {
       return;
     }
@@ -118,15 +173,58 @@ export function SettingsPage() {
     void refreshCacheDiagnostics();
   }, [refreshCacheDiagnostics]);
 
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnloadHandler);
+    return () => window.removeEventListener("beforeunload", beforeUnloadHandler);
+  }, [isDirty]);
+
+  useBlocker({
+    disabled: !isDirty,
+    shouldBlockFn: () => !window.confirm("You have unsaved settings changes. Leave this page without saving?"),
+  });
+
+  async function onSaveAllSettings() {
+    if (!isDirty || isSavingSettings) return;
+    setIsSavingSettings(true);
+    setSettingsStatusMessage("Saving settings");
+    try {
+      await onSaveSettings();
+      const savedAt = new Date();
+      setSavedSettingsSnapshot(currentSettingsSnapshot);
+      setHasInteracted(false);
+      setLastSavedAt(savedAt);
+      setSettingsStatusMessage("Settings saved");
+    } catch {
+      setSettingsStatusMessage("Saving settings failed");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
+
   async function onClearCache() {
     if (isCacheActionBusy) return;
     setIsClearingCache(true);
+    toast.loading("Clearing cache", {
+      id: cacheClearToastId,
+      description: "Removing local model catalog cache.",
+    });
     try {
       await api.invalidateModelCatalogCache();
-      toastSuccess("Cache cleared", "Catalog cache has been reset.");
+      toast.success("Cache cleared", {
+        id: cacheClearToastId,
+        description: "Catalog cache has been reset.",
+      });
       await refreshCacheDiagnostics();
     } catch (error) {
-      toastError(error, "Could not clear cache");
+      toast.error("Could not clear cache", {
+        id: cacheClearToastId,
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setIsClearingCache(false);
     }
@@ -135,13 +233,23 @@ export function SettingsPage() {
   async function onRefreshCatalog() {
     if (isCacheActionBusy) return;
     setIsRefreshingCatalog(true);
+    toast.loading("Refreshing catalog", {
+      id: catalogRefreshToastId,
+      description: "Fetching the latest model catalog.",
+    });
     try {
       await api.invalidateModelCatalogCache();
       await api.listModels();
-      toastSuccess("Catalog refreshed", "Fetched latest model catalog.");
+      toast.success("Catalog refreshed", {
+        id: catalogRefreshToastId,
+        description: "Fetched latest model catalog.",
+      });
       await refreshCacheDiagnostics();
     } catch (error) {
-      toastError(error, "Could not refresh catalog");
+      toast.error("Could not refresh catalog", {
+        id: catalogRefreshToastId,
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setIsRefreshingCatalog(false);
     }
@@ -150,36 +258,53 @@ export function SettingsPage() {
   async function onRunAllDiagnostics() {
     if (isRunningDiagnostics || isCheckingConnectivity || isCacheActionBusy) return;
     setIsRunningDiagnostics(true);
+    toast.loading("Running diagnostics", {
+      id: diagnosticsToastId,
+      description: "Checking connectivity and cache health.",
+    });
     try {
       const reachable = await checkConnectivity();
       await refreshCacheDiagnostics();
       if (reachable) {
-        toastSuccess("Diagnostics complete", "Connectivity and cache diagnostics were updated.");
+        toast.success("Diagnostics complete", {
+          id: diagnosticsToastId,
+          description: "Connectivity and cache diagnostics were updated.",
+        });
       } else {
-        toastWarning("Diagnostics complete", "Connectivity failed; cache diagnostics were still updated.");
+        toast.warning("Diagnostics complete", {
+          id: diagnosticsToastId,
+          description: "Cache diagnostics were updated. Connectivity warnings are shown above.",
+        });
       }
     } catch (error) {
-      toastError(error, "Diagnostics failed");
+      toast.error("Diagnostics failed", {
+        id: diagnosticsToastId,
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setIsRunningDiagnostics(false);
     }
   }
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-2 text-2xl md:text-3xl">
-            <Settings2 className="size-5" />
-            Settings
-          </CardTitle>
+          <CardTitle>Settings</CardTitle>
           <CardDescription>Configure model, language, audio input, and automation behavior.</CardDescription>
         </CardHeader>
       </Card>
 
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {settingsStatusMessage}
+      </p>
+
       <Card>
         <CardHeader>
-          <CardTitle>General</CardTitle>
+          <CardTitle className="inline-flex items-center gap-2">
+            <Sparkles />
+            General Settings
+          </CardTitle>
           <CardDescription>Default model and language settings.</CardDescription>
           <CardAction>
             <Badge variant="outline">Model: {resolvedDefaultModelId ?? "Not set"}</Badge>
@@ -188,27 +313,28 @@ export function SettingsPage() {
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="default-model">Default model</Label>
-            <Select
-              value={resolvedDefaultModelId ?? settings.defaultModelId}
-              onValueChange={onDefaultModelChange}
-            >
-              <SelectTrigger id="default-model" className="w-full">
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent>
-                {modelOptionsByLab.map((group) => (
-                  <SelectGroup key={group.lab}>
-                    <SelectLabel>{group.lab}</SelectLabel>
-                    {group.options.map((model) => (
-                      <SelectItem key={model.id} value={model.id} disabled={model.disabled}>
-                        {model.name}
-                        {model.disabled ? " (not downloaded)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            {isSettingsLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Select value={resolvedDefaultModelId ?? settings.defaultModelId} onValueChange={onDefaultModelChange}>
+                <SelectTrigger id="default-model" className="w-full">
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelOptionsByLab.map((group) => (
+                    <SelectGroup key={group.lab}>
+                      <SelectLabel>{group.lab}</SelectLabel>
+                      {group.options.map((model) => (
+                        <SelectItem key={model.id} value={model.id} disabled={model.disabled}>
+                          {model.name}
+                          {model.disabled ? " (not downloaded)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -221,10 +347,17 @@ export function SettingsPage() {
             />
           </div>
         </CardContent>
-        <CardFooter className="justify-end">
-          <Button onClick={() => void onSaveSettings()}>
-            <Save />
-            Save settings
+        <CardFooter className="justify-end gap-2">
+          <div className="mr-auto text-xs text-muted-foreground" aria-live="polite" aria-atomic="true">
+            {lastSavedAt ? `Last saved at ${lastSavedAt.toLocaleTimeString()}` : "Not saved yet in this session"}
+          </div>
+          <Button
+            onClick={() => void onSaveAllSettings()}
+            disabled={!isDirty || isSavingSettings}
+            aria-label="Save settings changes"
+          >
+            {isSavingSettings ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+            {isSavingSettings ? "Saving..." : "Save settings"}
           </Button>
         </CardFooter>
       </Card>
@@ -233,66 +366,73 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2">
             <Mic2 />
-            Audio Input
+            Audio Input Settings
           </CardTitle>
           <CardDescription>Select the preferred capture device.</CardDescription>
           <CardAction>
             <Badge variant="outline">{browserInputOptions.length} browser inputs</Badge>
           </CardAction>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-col gap-2">
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
             <Label htmlFor="audio-input">Audio input device</Label>
-            <Select
-              value={settings.audioInputDeviceId ?? ""}
-              onValueChange={onAudioInputChange}
-            >
-              <SelectTrigger id="audio-input" className="w-full">
-                <SelectValue placeholder="Select input" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {browserInputOptions.map((device) => (
-                    <SelectItem key={device.id} value={device.id}>
-                      {device.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            {isSettingsLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Select value={settings.audioInputDeviceId ?? ""} onValueChange={onAudioInputChange}>
+                <SelectTrigger id="audio-input" className="w-full">
+                  <SelectValue placeholder="Select input" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {browserInputOptions.map((device) => (
+                      <SelectItem key={device.id} value={device.id}>
+                        {device.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+            </div>
+            <p className="text-sm text-muted-foreground">{audioInputsSummary}</p>
           </div>
-          <p>{audioInputsSummary}</p>
         </CardContent>
         <CardFooter className="justify-end">
-          <Button onClick={() => void onSaveSettings()}>
-            <Save />
-            Save settings
+          <Button
+            onClick={() => void onSaveAllSettings()}
+            disabled={!isDirty || isSavingSettings}
+            aria-label="Save settings changes"
+          >
+            {isSavingSettings ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+            {isSavingSettings ? "Saving..." : "Save settings"}
           </Button>
         </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Automation</CardTitle>
+          <CardTitle className="inline-flex items-center gap-2">
+            <Settings2 />
+            Automation Settings
+          </CardTitle>
           <CardDescription>Toggle transcript post-processing options and startup behavior.</CardDescription>
           <CardAction>
             <Badge variant="outline">{automationEnabledCount} enabled</Badge>
           </CardAction>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex items-start justify-between gap-4 py-1">
-            <div className="space-y-1">
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="flex flex-col gap-1">
               <Label htmlFor="translate">Translate to English</Label>
               <p className="text-sm text-muted-foreground">When enabled, transcription output is translated to English.</p>
+              </div>
+              <Switch id="translate" checked={settings.translate} onCheckedChange={onTranslateChange} />
             </div>
-            <Switch
-              id="translate"
-              checked={settings.translate}
-              onCheckedChange={onTranslateChange}
-            />
-          </div>
-          <Separator />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 py-1">
+            <Separator />
+            <div className="grid grid-cols-1 gap-4 py-1 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="history-retention-days">Auto-delete history older than N days</Label>
               <Input
@@ -304,84 +444,76 @@ export function SettingsPage() {
                 onChange={(event) => onHistoryRetentionDaysChange(event.target.value)}
               />
             </div>
-            <div className="flex items-start justify-between gap-4 py-1">
-              <div className="space-y-1">
+              <div className="flex items-start justify-between gap-4 py-1">
+                <div className="flex flex-col gap-1">
                 <Label htmlFor="history-retention-include-pinned">Include pinned entries</Label>
                 <p className="text-sm text-muted-foreground">Apply retention policy to pinned history as well.</p>
+                </div>
+                <Switch
+                  id="history-retention-include-pinned"
+                  checked={settings.historyRetentionIncludePinned}
+                  onCheckedChange={onHistoryRetentionIncludePinnedChange}
+                />
               </div>
-              <Switch
-                id="history-retention-include-pinned"
-                checked={settings.historyRetentionIncludePinned}
-                onCheckedChange={onHistoryRetentionIncludePinnedChange}
-              />
             </div>
-          </div>
-          <Separator />
-          <div className="flex items-start justify-between gap-4 py-1">
-            <div className="space-y-1">
+            <Separator />
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="flex flex-col gap-1">
               <Label htmlFor="autocopy">Auto-copy transcript</Label>
               <p className="text-sm text-muted-foreground">Copy finished transcript text directly to the clipboard.</p>
+              </div>
+              <Switch id="autocopy" checked={settings.autoCopy} onCheckedChange={onAutoCopyChange} />
             </div>
-            <Switch
-              id="autocopy"
-              checked={settings.autoCopy}
-              onCheckedChange={onAutoCopyChange}
-            />
-          </div>
-          <Separator />
-          <div className="flex items-start justify-between gap-4 py-1">
-            <div className="space-y-1">
+            <Separator />
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="flex flex-col gap-1">
               <Label htmlFor="cleanup-enabled">Transcript cleanup</Label>
               <p className="text-sm text-muted-foreground">Enable stop-word/filler cleanup and punctuation normalization.</p>
+              </div>
+              <Switch id="cleanup-enabled" checked={settings.cleanupEnabled} onCheckedChange={onCleanupEnabledChange} />
             </div>
-            <Switch
-              id="cleanup-enabled"
-              checked={settings.cleanupEnabled}
-              onCheckedChange={onCleanupEnabledChange}
-            />
-          </div>
-          <Separator />
-          <div className="flex items-start justify-between gap-4 py-1">
-            <div className="space-y-1">
+            <Separator />
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="flex flex-col gap-1">
               <Label htmlFor="live-cleanup-enabled">Live cleanup</Label>
               <p className="text-sm text-muted-foreground">Apply lightweight rules while live transcription is running.</p>
+              </div>
+              <Switch id="live-cleanup-enabled" checked={settings.liveCleanupEnabled} onCheckedChange={onLiveCleanupEnabledChange} />
             </div>
-            <Switch
-              id="live-cleanup-enabled"
-              checked={settings.liveCleanupEnabled}
-              onCheckedChange={onLiveCleanupEnabledChange}
-            />
-          </div>
-          <Separator />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 py-1">
+            <Separator />
+            <div className="grid grid-cols-1 gap-4 py-1 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="live-cleanup-mode">Live cleanup mode</Label>
-              <Select value={settings.liveCleanupMode} onValueChange={onLiveCleanupModeChange}>
-                <SelectTrigger id="live-cleanup-mode" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="off">Off</SelectItem>
-                  <SelectItem value="rules">Rules only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <Select value={settings.liveCleanupMode} onValueChange={onLiveCleanupModeChange}>
+                  <SelectTrigger id="live-cleanup-mode" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="off">Off</SelectItem>
+                      <SelectItem value="rules">Rules only</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="finalize-cleanup-mode">Finalize cleanup mode</Label>
-              <Select value={settings.finalizeCleanupMode} onValueChange={onFinalizeCleanupModeChange}>
-                <SelectTrigger id="finalize-cleanup-mode" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="off">Off</SelectItem>
-                  <SelectItem value="rules">Rules only</SelectItem>
-                  <SelectItem value="rules_plus_model">Rules + model pipeline</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select value={settings.finalizeCleanupMode} onValueChange={onFinalizeCleanupModeChange}>
+                  <SelectTrigger id="finalize-cleanup-mode" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="off">Off</SelectItem>
+                      <SelectItem value="rules">Rules only</SelectItem>
+                      <SelectItem value="rules_plus_model">Rules + model pipeline</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-          <Separator />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 py-1">
+            <Separator />
+            <div className="grid grid-cols-1 gap-4 py-1 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="cleanup-latency-budget-ms">Cleanup timeout budget (ms)</Label>
               <Input
@@ -393,52 +525,55 @@ export function SettingsPage() {
                 onChange={(event) => onCleanupLatencyBudgetMsChange(event.target.value)}
               />
             </div>
-            <div className="flex items-start justify-between gap-4 py-1">
-              <div className="space-y-1">
+              <div className="flex items-start justify-between gap-4 py-1">
+                <div className="flex flex-col gap-1">
                 <Label htmlFor="cleanup-show-raw-toggle">Show raw transcript toggle</Label>
                 <p className="text-sm text-muted-foreground">Allow switching between cleaned and raw transcript text.</p>
+                </div>
+                <Switch
+                  id="cleanup-show-raw-toggle"
+                  checked={settings.cleanupShowRawToggle}
+                  onCheckedChange={onCleanupShowRawToggleChange}
+                />
               </div>
-              <Switch
-                id="cleanup-show-raw-toggle"
-                checked={settings.cleanupShowRawToggle}
-                onCheckedChange={onCleanupShowRawToggleChange}
-              />
             </div>
-          </div>
-          <Separator />
-          <div className="flex items-start justify-between gap-4 py-1">
-            <div className="space-y-1">
+            <Separator />
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="flex flex-col gap-1">
               <Label htmlFor="start-at-login">Start at login</Label>
               <p className="text-sm text-muted-foreground">Launch Murmur automatically when you sign in.</p>
+              </div>
+              <Switch id="start-at-login" checked={settings.startAtLogin} onCheckedChange={onStartAtLoginChange} />
             </div>
-            <Switch
-              id="start-at-login"
-              checked={settings.startAtLogin}
-              onCheckedChange={onStartAtLoginChange}
-            />
           </div>
         </CardContent>
         <CardFooter className="justify-end">
-          <Button onClick={() => void onSaveSettings()}>
-            <Save />
-            Save settings
+          <Button
+            onClick={() => void onSaveAllSettings()}
+            disabled={!isDirty || isSavingSettings}
+            aria-label="Save settings changes"
+          >
+            {isSavingSettings ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+            {isSavingSettings ? "Saving..." : "Save settings"}
           </Button>
         </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Debugging</CardTitle>
+          <CardTitle className="inline-flex items-center gap-2">
+            <ShieldCheck />
+            Connectivity Diagnostics
+          </CardTitle>
           <CardDescription>Connectivity and cache diagnostics for model downloads and catalog refresh.</CardDescription>
           <CardAction>
             <Badge variant="outline">Cache: {cacheDiagnostics?.status ?? "unknown"}</Badge>
           </CardAction>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">Connectivity diagnostics</p>
-            </div>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium">Connectivity diagnostics</p>
             <div className="flex flex-wrap items-center gap-2">
               {connectivityStatus === "offline" && <Badge variant="destructive">Status: Offline</Badge>}
               {connectivityStatus === "online" && <Badge variant="secondary">Status: Online</Badge>}
@@ -447,9 +582,9 @@ export function SettingsPage() {
             {connectivityDetail ? <p className="text-sm text-muted-foreground">{connectivityDetail}</p> : null}
           </div>
 
-          <Separator />
+            <Separator />
 
-          <div className="space-y-3">
+            <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-medium">Model catalog cache</p>
               <div className="flex flex-wrap items-center gap-2">
@@ -459,7 +594,7 @@ export function SettingsPage() {
                   disabled={isCacheActionBusy || isCheckingConnectivity || isRunningDiagnostics}
                   aria-label="Clear model catalog cache"
                 >
-                  {isClearingCache ? <Spinner /> : null}
+                  {isClearingCache ? <Spinner data-icon="inline-start" /> : <Database data-icon="inline-start" />}
                   Clear cache
                 </Button>
                 <Button
@@ -468,7 +603,7 @@ export function SettingsPage() {
                   disabled={isCacheActionBusy || isCheckingConnectivity || isRunningDiagnostics}
                   aria-label="Refresh model catalog now"
                 >
-                  {isRefreshingCatalog ? <Spinner /> : null}
+                  {isRefreshingCatalog ? <Spinner data-icon="inline-start" /> : <PlugZap data-icon="inline-start" />}
                   Refresh catalog now
                 </Button>
               </div>
@@ -479,6 +614,7 @@ export function SettingsPage() {
                 Cache key {cacheDiagnostics.key} | TTL {Math.round(cacheDiagnostics.ttlMs / 60000)} minutes
               </p>
             ) : null}
+            </div>
           </div>
         </CardContent>
         <CardFooter className="justify-end">
@@ -486,33 +622,43 @@ export function SettingsPage() {
             variant="outline"
             onClick={() => void onRunAllDiagnostics()}
             disabled={isRunningDiagnostics || isCheckingConnectivity || isCacheActionBusy}
+            aria-label="Run connectivity and cache diagnostics"
           >
-            {(isRunningDiagnostics || isCheckingConnectivity) ? <Spinner /> : null}
-            {(isRunningDiagnostics || isCheckingConnectivity) ? "Running diagnostics..." : "Run all diagnostics"}
+            {isRunningDiagnostics || isCheckingConnectivity ? <Spinner data-icon="inline-start" /> : <Gauge data-icon="inline-start" />}
+            {isRunningDiagnostics || isCheckingConnectivity ? "Running diagnostics..." : "Run all diagnostics"}
           </Button>
         </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Storage</CardTitle>
+          <CardTitle className="inline-flex items-center gap-2">
+            <Database />
+            Storage Settings
+          </CardTitle>
           <CardDescription>Review the active app data directory.</CardDescription>
           <CardAction>
             <Badge variant="outline">Local settings</Badge>
           </CardAction>
         </CardHeader>
         <CardContent>
-          <p>
-            App data: <code className="break-all">{appDataDir}</code>
-          </p>
-          <p>
-            Settings file: <code className="break-all">{settingsFilePath || "~/.config/murmur/settings.yaml"}</code>
-          </p>
+          <div className="flex flex-col gap-2 text-sm">
+            <p>
+              App data: <code className="break-all">{appDataDir}</code>
+            </p>
+            <p>
+              Settings file: <code className="break-all">{settingsFilePath || "~/.config/murmur/settings.yaml"}</code>
+            </p>
+          </div>
         </CardContent>
         <CardFooter className="justify-end">
-          <Button onClick={() => void onSaveSettings()}>
-            <Save />
-            Save settings
+          <Button
+            onClick={() => void onSaveAllSettings()}
+            disabled={!isDirty || isSavingSettings}
+            aria-label="Save settings changes"
+          >
+            {isSavingSettings ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
+            {isSavingSettings ? "Saving..." : "Save settings"}
           </Button>
         </CardFooter>
       </Card>
