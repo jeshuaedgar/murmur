@@ -38,7 +38,7 @@ pub struct DownloadTaskInfo {
 
 pub struct AppState {
     pub model_manager: ModelManager,
-    pub whisper_service: WhisperService,
+    pub whisper_service: Arc<WhisperService>,
     pub download_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
     pub transcription_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
@@ -47,7 +47,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             model_manager: ModelManager::new(),
-            whisper_service: WhisperService::new(),
+            whisper_service: Arc::new(WhisperService::new()),
             download_flags: Mutex::new(HashMap::new()),
             transcription_flags: Mutex::new(HashMap::new()),
         }
