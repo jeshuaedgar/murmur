@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Boxes, House, Settings2 } from "lucide-react";
+import { Boxes, House, Settings2, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -11,7 +11,7 @@ function NavButton({
 	label,
 	icon: Icon,
 }: {
-	to: "/home" | "/models" | "/settings";
+	to: "/home" | "/models" | "/settings" | "/cleanup";
 	label: string;
 	icon: typeof House;
 }) {
@@ -51,6 +51,7 @@ export default function App({ children }: { children: ReactNode }) {
 					<nav aria-label="Primary" className="flex flex-wrap gap-1 p-1">
 						<NavButton to="/home" label="Home" icon={House} />
 						<NavButton to="/models" label="Models" icon={Boxes} />
+						<NavButton to="/cleanup" label="Cleanup" icon={WandSparkles} />
 						<NavButton to="/settings" label="Settings" icon={Settings2} />
 					</nav>
 				</div>

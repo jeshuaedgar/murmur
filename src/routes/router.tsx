@@ -9,6 +9,7 @@ import App from "@/App";
 import { HomePage } from "@/pages/HomePage";
 import { ModelsPage } from "@/pages/ModelsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { CleanupPage } from "@/pages/CleanupPage";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -42,7 +43,13 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, homeRoute, modelsRoute, settingsRoute]);
+const cleanupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cleanup",
+  component: CleanupPage,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, homeRoute, modelsRoute, settingsRoute, cleanupRoute]);
 
 export function createAppRouter() {
   return createRouter({ routeTree });

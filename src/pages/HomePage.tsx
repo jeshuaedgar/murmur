@@ -1,8 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CircleX, Copy, Eraser, FileAudio2, House, Mic, Square } from "lucide-react";
+import { Copy, Eraser, FileAudio2, House, Mic, Square } from "lucide-react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppState } from "@/context/app-state";
@@ -39,9 +41,13 @@ export function HomePage() {
     liveMode,
     activeTranscriptionTaskId,
     transcript,
+    rawTranscript,
+    cleanupStrategy,
     setLiveMode,
     setStatus,
     setTranscript,
+    setRawTranscript,
+    setCleanupStrategy,
     startRecording,
     stopRecordingAndTranscribe,
     startFileTranscription,
@@ -54,6 +60,8 @@ export function HomePage() {
     activeTranscriptionTaskId,
     setStatus,
     setTranscript,
+    setRawTranscript,
+    setCleanupStrategy,
     startRecording,
     stopRecordingAndTranscribe,
     startFileTranscription,
@@ -66,6 +74,9 @@ export function HomePage() {
     setTranscript,
     copyText,
   });
+  const [showRawTranscript, setShowRawTranscript] = useState(false);
+  const visibleTranscript =
+    settings.cleanupShowRawToggle && showRawTranscript ? rawTranscript : transcript;
 
   return (
     <div className="space-y-4">
@@ -73,6 +84,13 @@ export function HomePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">Model: {settings.defaultModelId}</Badge>
           <Badge variant={getStatusBadgeVariant(status)}>{status}</Badge>
+          <Badge variant="outline">Cleanup: {cleanupStrategy}</Badge>
+          {isBusy && (
+            <Badge variant="outline" className="inline-flex items-center gap-1">
+              <Spinner className="size-3" />
+              Processing
+            </Badge>
+          )}
           {showRecordingBadge && <Badge variant="outline">Recording</Badge>}
         </div>
         <h1 className="inline-flex items-center gap-2">
@@ -118,7 +136,7 @@ export function HomePage() {
                 variant="destructive"
                 onClick={() => void onCancelTranscription()}
               >
-                <CircleX />
+                <Spinner />
                 Cancel Transcription
               </Button>
             )}
@@ -147,6 +165,14 @@ export function HomePage() {
               <Copy />
               Copy
             </Button>
+            {settings.cleanupShowRawToggle && (
+              <Button
+                variant="outline"
+                onClick={() => setShowRawTranscript((current) => !current)}
+              >
+                {showRawTranscript ? "Show Cleaned" : "Show Raw"}
+              </Button>
+            )}
             <Button variant="ghost" onClick={onClearTranscript}>
               <Eraser />
               Clear
@@ -155,7 +181,7 @@ export function HomePage() {
           <Textarea
             aria-label="Transcript text"
             rows={16}
-            value={transcript}
+            value={visibleTranscript}
             onChange={(event) => onTranscriptChange(event.target.value)}
           />
         </CardContent>

@@ -1,5 +1,7 @@
 use crate::domain::app_error::AppError;
-use crate::domain::transcription_result::{TranscriptionOptions, TranscriptionResult};
+use crate::domain::transcription_result::{
+    CleanupTextOptions, CleanupTextResult, TranscriptionOptions, TranscriptionResult,
+};
 use crate::services::audio_convert;
 use crate::state::app_state::AppState;
 use std::sync::Arc;
@@ -111,6 +113,24 @@ pub async fn transcribe_pcm(
         .map_err(String::from)?;
 
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn cleanup_text(
+    state: State<'_, AppState>,
+    text: String,
+    options: CleanupTextOptions,
+) -> Result<CleanupTextResult, String> {
+    if text.trim().is_empty() {
+        return Ok(CleanupTextResult {
+            raw_text: text.clone(),
+            cleaned_text: text,
+            strategy: "raw".to_string(),
+            rejected_reason: None,
+        });
+    }
+
+    Ok(state.cleanup_service.cleanup_text(&text, &options))
 }
 
 #[tauri::command]

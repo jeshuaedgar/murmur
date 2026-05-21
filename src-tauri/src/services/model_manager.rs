@@ -131,6 +131,16 @@ struct CatalogSource {
     id_hint: Option<&'static str>,
 }
 
+struct StaticModelSource {
+    id: &'static str,
+    lab: &'static str,
+    name: &'static str,
+    description: &'static str,
+    url: &'static str,
+    file_name: &'static str,
+    size_bytes: Option<u64>,
+}
+
 const CATALOG_SOURCES: [CatalogSource; 4] = [
     CatalogSource {
         lab: "OpenAI Whisper",
@@ -155,6 +165,27 @@ const CATALOG_SOURCES: [CatalogSource; 4] = [
         api_url: "https://huggingface.co/api/models/distil-whisper/distil-small.en?blobs=true",
         resolve_base: "https://huggingface.co/distil-whisper/distil-small.en/resolve/main/",
         id_hint: Some("distil-small.en"),
+    },
+];
+
+const STATIC_MODEL_SOURCES: [StaticModelSource; 2] = [
+    StaticModelSource {
+        id: "cleanup-models:flan-t5-small",
+        lab: "Cleanup Models",
+        name: "FLAN-T5 Small (Cleanup)",
+        description: "Optional local cleanup model backend for transcript rewrite. Uses a different backend path than Whisper transcription.",
+        url: "https://huggingface.co/google/flan-t5-small/resolve/main/model.safetensors",
+        file_name: "cleanup-flan-t5-small-model.safetensors",
+        size_bytes: None,
+    },
+    StaticModelSource {
+        id: "cleanup-models:flan-t5-base",
+        lab: "Cleanup Models",
+        name: "FLAN-T5 Base (Cleanup)",
+        description: "Stronger optional cleanup model for higher-end hardware. Uses a different backend path than Whisper transcription.",
+        url: "https://huggingface.co/google/flan-t5-base/resolve/main/model.safetensors",
+        file_name: "cleanup-flan-t5-base-model.safetensors",
+        size_bytes: None,
     },
 ];
 
@@ -230,13 +261,29 @@ async fn fetch_models_from_huggingface() -> Result<Vec<ModelInfo>, AppError> {
         }
     }
 
+    for source in STATIC_MODEL_SOURCES {
+        models.push(ModelInfo {
+            id: source.id.to_string(),
+            lab: source.lab.to_string(),
+            name: source.name.to_string(),
+            description: source.description.to_string(),
+            url: source.url.to_string(),
+            file_name: source.file_name.to_string(),
+            recommended: false,
+            fastest: false,
+            best_quality: false,
+            size_bytes: source.size_bytes,
+        });
+    }
+
     models.sort_by(|a, b| {
-        a.lab
-            .cmp(&b.lab)
+        lab_sort_key(&a.lab)
+            .cmp(&lab_sort_key(&b.lab))
+            .then_with(|| a.lab.cmp(&b.lab))
             .then_with(|| {
-        a.size_bytes
-            .unwrap_or(u64::MAX)
-            .cmp(&b.size_bytes.unwrap_or(u64::MAX))
+                a.size_bytes
+                    .unwrap_or(u64::MAX)
+                    .cmp(&b.size_bytes.unwrap_or(u64::MAX))
             })
             .then_with(|| a.id.cmp(&b.id))
     });
@@ -351,6 +398,15 @@ fn pick_best_quality_model_index(models: &[ModelInfo]) -> Option<usize> {
         .filter_map(|(idx, model)| model.size_bytes.map(|size| (idx, size)))
         .max_by_key(|(_, size)| *size)
         .map(|(idx, _)| idx)
+}
+
+fn lab_sort_key(lab: &str) -> u8 {
+    match lab {
+        "OpenAI Whisper" => 0,
+        "Distil-Whisper" => 1,
+        "Cleanup Models" => u8::MAX,
+        _ => 200,
+    }
 }
 
 fn write_catalog_cache(app: &AppHandle, models: &[ModelInfo]) -> Result<(), AppError> {

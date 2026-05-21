@@ -13,14 +13,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Boxes, Brain, Download, FlaskConical, InfoIcon, RefreshCcw, Trash2 } from "lucide-react";
+import { Boxes, Brain, Download, FlaskConical, InfoIcon, RefreshCcw, Trash2, WandSparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { useAppState } from "@/context/app-state";
 import { useModelConnectivity } from "@/features/models/hooks/use-model-connectivity";
 import { useModelActions } from "@/features/models/lib/model-actions";
 import { groupModelsByLab } from "@/features/models/lib/lab-order";
 import { getModelCardState, getModelProgressByModelId } from "@/features/models/lib/model-view-state";
+import { ModelSectionCard } from "@/features/models/components/model-section-card";
 
 function formatBytes(bytes?: number) {
   if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
@@ -63,6 +65,8 @@ export function ModelsPage() {
   const totalModels = models.length;
   const installedModels = models.filter((model) => installedById.get(model.id)?.installed).length;
   const activeDownloads = Array.from(downloadProgress.values()).filter((entry) => (entry.progressPct ?? 0) < 100).length;
+  const cleanupModels = models.filter((model) => model.lab === "Cleanup Models");
+  const installedCleanupModels = cleanupModels.filter((model) => installedById.get(model.id)?.installed).length;
 
   return (
     <div className="space-y-8">
@@ -86,41 +90,47 @@ export function ModelsPage() {
           <div className="flex flex-wrap items-center gap-2">
             {connectivityStatus === "offline" && <Badge variant="destructive">No internet</Badge>}
             {connectivityStatus === "online" && <Badge variant="secondary">Online</Badge>}
+            {connectivityStatus === "unknown" && <Badge variant="outline">Connectivity unknown</Badge>}
+            {connectivityStatus === "checking" && (
+              <Badge variant="outline" className="inline-flex items-center gap-1">
+                <Spinner className="size-3" />
+                Checking connectivity
+              </Badge>
+            )}
             {connectivityDetail ? <p className="text-sm text-muted-foreground">{connectivityDetail}</p> : null}
           </div>
         </div>
       </header>
 
       {modelsByLab.map(([lab, labModels]) => {
+        if (lab === "Cleanup Models") {
+          return null;
+        }
         const LabIcon = lab === "OpenAI Whisper" ? Brain : FlaskConical;
         const installedCount = labModels.filter((model) => installedById.get(model.id)?.installed).length;
         return (
-          <Card key={lab}>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <LabIcon className="size-4" />
-                <CardTitle className="text-xl tracking-tight">{lab}</CardTitle>
-                <Badge variant="secondary" className="ml-auto">
-                  {installedCount}/{labModels.length} installed
-                </Badge>
-              </div>
-            </CardHeader>
-            <Separator />
-            <CardContent className="space-y-4 pt-6 pb-6">
-            {lab === "Distil-Whisper" && (
-              <Alert>
-                <InfoIcon className="size-4" />
-                <AlertTitle>Distil-Whisper Guidance</AlertTitle>
-                <AlertDescription>
-                  <ul className="list-disc space-y-1 pl-5">
-                    <li>Default pick: <code>distil-large-v3</code> for most workloads.</li>
-                    <li>Low-memory devices: <code>distil-small.en</code>.</li>
-                    <li>Language support: English speech recognition only.</li>
-                    <li>Status: Experimental in this app; results may vary by hardware and audio.</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
+          <ModelSectionCard
+            key={lab}
+            icon={<LabIcon className="size-4" />}
+            title={lab}
+            countBadge={`${installedCount}/${labModels.length} installed`}
+            preContent={
+              lab === "Distil-Whisper" ? (
+                <Alert>
+                  <InfoIcon className="size-4" />
+                  <AlertTitle>Distil-Whisper Guidance</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc space-y-1 pl-5">
+                      <li>Default pick: <code>distil-large-v3</code> for most workloads.</li>
+                      <li>Low-memory devices: <code>distil-small.en</code>.</li>
+                      <li>Language support: English speech recognition only.</li>
+                      <li>Status: Experimental in this app; results may vary by hardware and audio.</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : null
+            }
+          >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {labModels.map((model) => {
                 const installedModel = installedById.get(model.id);
@@ -130,6 +140,8 @@ export function ModelsPage() {
                   isInstalled,
                   isDownloading,
                   actionLabel,
+                  statusLabel,
+                  statusBadgeVariant,
                   installButtonVariant,
                 } = getModelCardState({
                   installedModel,
@@ -145,6 +157,9 @@ export function ModelsPage() {
                           {model.id} ({formatBytes(model.sizeBytes)})
                         </Badge>
                       </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant={statusBadgeVariant}>{statusLabel}</Badge>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {model.recommended && <Badge variant="secondary">Recommended</Badge>}
                         {model.fastest && <Badge variant="outline">Optimized for speed</Badge>}
@@ -157,7 +172,10 @@ export function ModelsPage() {
                       {isDownloading && (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between gap-2 text-sm">
-                            <span>Downloading model</span>
+                            <span className="inline-flex items-center gap-1.5">
+                              <Spinner className="size-3" />
+                              Downloading model
+                            </span>
                             <span>{Math.round(progressValue)}%</span>
                           </div>
                           <Progress value={progressValue} aria-label={`Download progress for ${model.name}`} />
@@ -172,7 +190,7 @@ export function ModelsPage() {
                         disabled={isDownloading}
                         onClick={() => void handleDownload(model.id, isInstalled).catch(() => undefined)}
                       >
-                        {isInstalled ? <RefreshCcw /> : <Download />}
+                        {isDownloading ? <Spinner /> : isInstalled ? <RefreshCcw /> : <Download />}
                         {isDownloading ? "Downloading..." : actionLabel}
                       </Button>
                       <Button
@@ -189,10 +207,101 @@ export function ModelsPage() {
                 );
               })}
             </div>
-            </CardContent>
-          </Card>
+          </ModelSectionCard>
         );
       })}
+
+      <ModelSectionCard
+        sectionId="cleanup-models"
+        title="Cleanup Models"
+        icon={<WandSparkles className="size-4" />}
+        countBadge={`${installedCleanupModels}/${cleanupModels.length} installed`}
+        preContent={
+          <>
+            <CardDescription>
+              Optional models for transcript cleanup pipeline. These use a different backend than Whisper transcription.
+            </CardDescription>
+            <Alert>
+              <InfoIcon className="size-4" />
+              <AlertTitle>Different backend path</AlertTitle>
+              <AlertDescription>
+                Cleanup models are downloaded and managed here, but they are used by the cleanup backend pipeline, not by the Whisper transcription engine.
+              </AlertDescription>
+            </Alert>
+          </>
+        }
+      >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {cleanupModels.map((model) => {
+              const installedModel = installedById.get(model.id);
+              const progress = progressByModelId.get(model.id);
+              const {
+                progressValue,
+                isInstalled,
+                isDownloading,
+                actionLabel,
+                statusLabel,
+                statusBadgeVariant,
+                installButtonVariant,
+              } = getModelCardState({
+                installedModel,
+                progress,
+              });
+              return (
+                <Card key={model.id} className="h-full">
+                  <CardHeader className="gap-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <CardTitle className="text-base">{model.name}</CardTitle>
+                      <Badge variant="outline" className="font-mono">
+                        {model.id} ({formatBytes(model.sizeBytes)})
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant={statusBadgeVariant}>{statusLabel}</Badge>
+                    </div>
+                    <CardDescription className="leading-relaxed">{model.description}</CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="flex-1 space-y-2">
+                    {isDownloading && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Spinner className="size-3" />
+                            Downloading model
+                          </span>
+                          <span>{Math.round(progressValue)}%</span>
+                        </div>
+                        <Progress value={progressValue} aria-label={`Download progress for ${model.name}`} />
+                      </div>
+                    )}
+                  </CardContent>
+
+                  <CardFooter className="mt-auto grid grid-cols-2 gap-2">
+                    <Button
+                      className="w-full"
+                      variant={installButtonVariant}
+                      disabled={isDownloading}
+                      onClick={() => void handleDownload(model.id, isInstalled).catch(() => undefined)}
+                    >
+                      {isDownloading ? <Spinner /> : isInstalled ? <RefreshCcw /> : <Download />}
+                      {isDownloading ? "Downloading..." : actionLabel}
+                    </Button>
+                    <Button
+                      className="w-full"
+                      variant="destructive"
+                      disabled={!isInstalled || isDownloading}
+                      onClick={() => openRemoveConfirmation(model.id)}
+                    >
+                      <Trash2 />
+                      Remove model
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+      </ModelSectionCard>
 
       <AlertDialog open={Boolean(pendingRemoveModelId)} onOpenChange={(open) => !open && closeRemoveConfirmation()}>
         <AlertDialogContent>

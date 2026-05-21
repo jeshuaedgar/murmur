@@ -30,6 +30,8 @@ pub async fn download_to_file(
         "https://huggingface.co/distil-whisper/distil-large-v3-ggml/",
         "https://huggingface.co/distil-whisper/distil-large-v3.5-ggml/",
         "https://huggingface.co/distil-whisper/distil-small.en/",
+        "https://huggingface.co/google/flan-t5-small/",
+        "https://huggingface.co/google/flan-t5-base/",
     ];
     if !allowed.iter().any(|prefix| url.starts_with(prefix)) {
         return Err(AppError::InvalidInput("model URL is not allowlisted".to_string()));

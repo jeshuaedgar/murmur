@@ -3,6 +3,7 @@ import type { ModelInfo } from "@/lib/types/models";
 const LAB_ORDER_INDEX: Record<string, number> = {
   "OpenAI Whisper": 0,
   "Distil-Whisper": 1,
+  "Cleanup Models": 2,
 };
 
 export function getLabOrderIndex(lab: string): number {

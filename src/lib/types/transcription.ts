@@ -16,3 +16,16 @@ export type TranscriptionResult = {
   durationMs: number;
   segments?: TranscriptionSegment[];
 };
+
+export type CleanupTextOptions = {
+  language?: string | null;
+  mode?: "off" | "rules" | "rules_plus_model";
+  timeoutMs?: number;
+};
+
+export type CleanupTextResult = {
+  rawText: string;
+  cleanedText: string;
+  strategy: "raw" | "rules" | "rules_plus_model";
+  rejectedReason?: string | null;
+};

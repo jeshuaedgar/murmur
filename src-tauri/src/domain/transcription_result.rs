@@ -24,3 +24,20 @@ pub struct TranscriptionResult {
     pub duration_ms: u128,
     pub segments: Vec<TranscriptionSegment>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupTextOptions {
+    pub language: Option<String>,
+    pub mode: Option<String>,
+    pub timeout_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupTextResult {
+    pub raw_text: String,
+    pub cleaned_text: String,
+    pub strategy: String,
+    pub rejected_reason: Option<String>,
+}

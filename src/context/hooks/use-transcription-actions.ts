@@ -6,6 +6,8 @@ import { api } from "@/lib/api/tauri";
 import type { AppSettings } from "@/lib/types/settings";
 import { requireTauri } from "@/lib/runtime/tauri";
 import { toastInfo } from "@/lib/toast";
+import { runCleanupPipeline, runLiveCleanup } from "@/features/transcription/cleanup/pipeline";
+import type { CleanupStrategy } from "@/features/transcription/cleanup/types";
 
 type UseTranscriptionActionsParams = {
   settings: AppSettings;
@@ -16,6 +18,8 @@ type UseTranscriptionActionsParams = {
   setIsRecording: Dispatch<SetStateAction<boolean>>;
   setStatus: Dispatch<SetStateAction<string>>;
   setTranscript: Dispatch<SetStateAction<string>>;
+  setRawTranscript: Dispatch<SetStateAction<string>>;
+  setCleanupStrategy: Dispatch<SetStateAction<CleanupStrategy>>;
   setActiveTranscriptionTaskId: Dispatch<SetStateAction<string | null>>;
   copyText: (text: string) => Promise<void>;
   refreshBrowserAudioInputs: () => Promise<void>;
@@ -82,6 +86,8 @@ export function useTranscriptionActions({
   setIsRecording,
   setStatus,
   setTranscript,
+  setRawTranscript,
+  setCleanupStrategy,
   setActiveTranscriptionTaskId,
   copyText,
   refreshBrowserAudioInputs,
@@ -144,11 +150,17 @@ export function useTranscriptionActions({
             language: settingsRef.current.language === "auto" ? null : settingsRef.current.language,
             translate: settingsRef.current.translate,
           });
-          const cleaned = normalizeTranscriptText(result.text);
-          if (cleaned.length > 0) {
+          const normalized = normalizeTranscriptText(result.text);
+          const cleanup = runLiveCleanup(normalized, settingsRef.current);
+          setRawTranscript((current) => {
+            if (!current.trim()) return normalized;
+            return `${current.trimEnd()} ${normalized}`;
+          });
+          setCleanupStrategy(cleanup.strategy);
+          if (cleanup.cleaned.length > 0) {
             setTranscript((current) => {
-              if (!current.trim()) return cleaned;
-              return `${current.trimEnd()} ${cleaned}`;
+              if (!current.trim()) return cleanup.cleaned;
+              return `${current.trimEnd()} ${cleanup.cleaned}`;
             });
           }
         } catch {
@@ -189,13 +201,19 @@ export function useTranscriptionActions({
         translate: settings.translate,
       });
 
-      const cleaned = normalizeTranscriptText(result.text);
-      if (cleaned.length > 0) {
+      const normalized = normalizeTranscriptText(result.text);
+      const cleanup = await runCleanupPipeline(normalized, settings, result.language);
+      setRawTranscript((current) => {
+        if (!current.trim()) return normalized;
+        return `${current.trimEnd()} ${normalized}`;
+      });
+      setCleanupStrategy(cleanup.strategy);
+      if (cleanup.cleaned.length > 0) {
         setTranscript((current) => {
-          if (!current.trim()) return cleaned;
-          return `${current.trimEnd()} ${cleaned}`;
+          if (!current.trim()) return cleanup.cleaned;
+          return `${current.trimEnd()} ${cleanup.cleaned}`;
         });
-        if (settings.autoCopy) await copyText(cleaned);
+        if (settings.autoCopy) await copyText(cleanup.cleaned);
       }
 
       // Keep local WAV files as a convenience, but do not fail transcription if permissions block writes.

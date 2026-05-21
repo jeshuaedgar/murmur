@@ -5,8 +5,14 @@ import { compareLabs } from "@/features/models/lib/lab-order";
 import {
   updateAudioInputDeviceId,
   updateAutoCopy,
+  updateCleanupEnabled,
+  updateCleanupLatencyBudgetMs,
+  updateCleanupShowRawToggle,
   updateDefaultModelId,
+  updateFinalizeCleanupMode,
   updateLanguage,
+  updateLiveCleanupEnabled,
+  updateLiveCleanupMode,
   updateStartAtLogin,
   updateTranslate,
 } from "@/features/settings/lib/settings-updaters";
@@ -124,6 +130,30 @@ export function useSettingsPageLogic({
     (checked: boolean) => setSettings(updateStartAtLogin(checked)),
     [setSettings],
   );
+  const onCleanupEnabledChange = useCallback(
+    (checked: boolean) => setSettings(updateCleanupEnabled(checked)),
+    [setSettings],
+  );
+  const onLiveCleanupEnabledChange = useCallback(
+    (checked: boolean) => setSettings(updateLiveCleanupEnabled(checked)),
+    [setSettings],
+  );
+  const onLiveCleanupModeChange = useCallback(
+    (value: "off" | "rules") => setSettings(updateLiveCleanupMode(value)),
+    [setSettings],
+  );
+  const onFinalizeCleanupModeChange = useCallback(
+    (value: "off" | "rules" | "rules_plus_model") => setSettings(updateFinalizeCleanupMode(value)),
+    [setSettings],
+  );
+  const onCleanupLatencyBudgetMsChange = useCallback(
+    (value: string) => setSettings(updateCleanupLatencyBudgetMs(Number(value) || 200)),
+    [setSettings],
+  );
+  const onCleanupShowRawToggleChange = useCallback(
+    (checked: boolean) => setSettings(updateCleanupShowRawToggle(checked)),
+    [setSettings],
+  );
   const onSaveSettings = useCallback(async () => {
     await saveSettings().catch(() => undefined);
   }, [saveSettings]);
@@ -139,6 +169,12 @@ export function useSettingsPageLogic({
     onTranslateChange,
     onAutoCopyChange,
     onStartAtLoginChange,
+    onCleanupEnabledChange,
+    onLiveCleanupEnabledChange,
+    onLiveCleanupModeChange,
+    onFinalizeCleanupModeChange,
+    onCleanupLatencyBudgetMsChange,
+    onCleanupShowRawToggleChange,
     onSaveSettings,
   };
 }

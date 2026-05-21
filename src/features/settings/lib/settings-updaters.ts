@@ -11,6 +11,17 @@ export const updateLanguage = updateSetting("language");
 export const updateTranslate = updateSetting("translate");
 export const updateAutoCopy = updateSetting("autoCopy");
 export const updateStartAtLogin = updateSetting("startAtLogin");
+export const updateCleanupEnabled = updateSetting("cleanupEnabled");
+export const updateLiveCleanupEnabled = updateSetting("liveCleanupEnabled");
+export const updateLiveCleanupMode = updateSetting("liveCleanupMode");
+export const updateFinalizeCleanupMode = updateSetting("finalizeCleanupMode");
+export const updateCleanupLatencyBudgetMs = updateSetting("cleanupLatencyBudgetMs");
+export const updateCleanupShowRawToggle = updateSetting("cleanupShowRawToggle");
+export const updateCleanupBackend = updateSetting("cleanupBackend");
+export const updateCleanupModelId: SettingsUpdater<string> = (value) => (prev) => ({
+  ...prev,
+  cleanupModelId: value || null,
+});
 export const updateAudioInputDeviceId: SettingsUpdater<string> = (value) => (prev) => ({
   ...prev,
   audioInputDeviceId: value || null,

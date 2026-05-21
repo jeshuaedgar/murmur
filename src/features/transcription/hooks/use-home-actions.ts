@@ -1,11 +1,14 @@
 import { useCallback } from "react";
 import { getErrorMessage, toastError, toastInfo, toastWarning } from "@/lib/toast";
+import type { CleanupStrategy } from "@/features/transcription/cleanup/types";
 
 type UseHomeActionsArgs = {
   isRecording: boolean;
   activeTranscriptionTaskId: string | null;
   setStatus: (value: string) => void;
   setTranscript: (value: string) => void;
+  setRawTranscript: (value: string) => void;
+  setCleanupStrategy: (value: CleanupStrategy) => void;
   startRecording: () => Promise<void>;
   stopRecordingAndTranscribe: () => Promise<void>;
   startFileTranscription: () => Promise<void>;
@@ -17,6 +20,8 @@ export function useHomeActions({
   activeTranscriptionTaskId,
   setStatus,
   setTranscript,
+  setRawTranscript,
+  setCleanupStrategy,
   startRecording,
   stopRecordingAndTranscribe,
   startFileTranscription,
@@ -58,8 +63,10 @@ export function useHomeActions({
 
   const onClearTranscript = useCallback(() => {
     setTranscript("");
+    setRawTranscript("");
+    setCleanupStrategy("raw");
     toastInfo("Transcript cleared");
-  }, [setTranscript]);
+  }, [setCleanupStrategy, setRawTranscript, setTranscript]);
 
   return {
     onRecordToggle,
