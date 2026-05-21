@@ -10,6 +10,27 @@ import { useHomeActions } from "@/features/transcription/hooks/use-home-actions"
 import { useHomeViewModel } from "@/features/transcription/hooks/use-home-view-model";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
 
+function getStatusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
+  const normalized = status.toLowerCase();
+  if (
+    normalized.includes("failed") ||
+    normalized.includes("error") ||
+    normalized.includes("offline") ||
+    normalized.includes("canceled")
+  ) {
+    return "destructive";
+  }
+  if (
+    normalized.includes("done") ||
+    normalized.includes("saved") ||
+    normalized.includes("recording") ||
+    normalized.includes("transcribing")
+  ) {
+    return "secondary";
+  }
+  return "outline";
+}
+
 export function HomePage() {
   const {
     settings,
@@ -51,7 +72,7 @@ export function HomePage() {
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">Model: {settings.defaultModelId}</Badge>
-          <Badge>{status}</Badge>
+          <Badge variant={getStatusBadgeVariant(status)}>{status}</Badge>
           {showRecordingBadge && <Badge variant="outline">Recording</Badge>}
         </div>
         <h1 className="inline-flex items-center gap-2">
@@ -94,7 +115,7 @@ export function HomePage() {
 
             {isBusy && (
               <Button
-                variant="outline"
+                variant="destructive"
                 onClick={() => void onCancelTranscription()}
               >
                 <CircleX />
@@ -122,11 +143,11 @@ export function HomePage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => void onCopyTranscript()}>
+            <Button variant="outline" onClick={() => void onCopyTranscript()}>
               <Copy />
               Copy
             </Button>
-            <Button variant="secondary" onClick={onClearTranscript}>
+            <Button variant="ghost" onClick={onClearTranscript}>
               <Eraser />
               Clear
             </Button>
@@ -142,7 +163,11 @@ export function HomePage() {
 
       {!isTauriRuntime && (
         <Card>
-          <CardContent className="py-3">
+          <CardHeader>
+            <CardTitle>Web Preview Mode</CardTitle>
+            <CardDescription>Backend commands are disabled in browser-only mode.</CardDescription>
+          </CardHeader>
+          <CardContent>
             <p>
               Web preview mode: backend commands are disabled. Run <code>npm run tauri dev</code> for full functionality.
             </p>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,21 +12,14 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Boxes, Brain, Download, FlaskConical, InfoIcon, RefreshCcw, Trash2 } from "lucide-react";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemFooter,
-  ItemGroup,
-  ItemHeader,
-  ItemTitle,
-} from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { useAppState } from "@/context/app-state";
 import { useModelConnectivity } from "@/features/models/hooks/use-model-connectivity";
 import { useModelActions } from "@/features/models/lib/model-actions";
+import { groupModelsByLab } from "@/features/models/lib/lab-order";
 import { getModelCardState, getModelProgressByModelId } from "@/features/models/lib/model-view-state";
 
 function formatBytes(bytes?: number) {
@@ -47,23 +40,8 @@ function formatBytes(bytes?: number) {
 export function ModelsPage() {
   const { models, installedById, downloadProgress, downloadModel, deleteModel } = useAppState();
   const progressByModelId = useMemo(() => getModelProgressByModelId(downloadProgress), [downloadProgress]);
-  const modelsByLab = useMemo(() => {
-    const grouped = new Map<string, typeof models>();
-    for (const model of models) {
-      const current = grouped.get(model.lab) ?? [];
-      grouped.set(model.lab, [...current, model]);
-    }
-    const ordered = Array.from(grouped.entries()).sort(([a], [b]) => {
-      if (a === "Distil-Whisper" && b !== "Distil-Whisper") return 1;
-      if (b === "Distil-Whisper" && a !== "Distil-Whisper") return -1;
-      return a.localeCompare(b);
-    });
-    return ordered;
-  }, [models]);
-  const { connectivityStatus, connectivityDetail, isCheckingConnectivity, checkConnectivity } = useModelConnectivity();
-  const [connectivityCooldownUntil, setConnectivityCooldownUntil] = useState<number | null>(null);
-  const [connectivityCooldownSeconds, setConnectivityCooldownSeconds] = useState(0);
-  const isConnectivityCooldownActive = connectivityCooldownSeconds > 0;
+  const modelsByLab = useMemo(() => groupModelsByLab(models), [models]);
+  const { connectivityStatus, connectivityDetail, checkConnectivity } = useModelConnectivity();
   const {
     pendingRemoveModelId,
     pendingModel,
@@ -82,69 +60,53 @@ export function ModelsPage() {
     checkConnectivity,
   });
 
-  useEffect(() => {
-    if (!connectivityCooldownUntil) {
-      setConnectivityCooldownSeconds(0);
-      return;
-    }
-
-    const tick = () => {
-      const secondsLeft = Math.max(0, Math.ceil((connectivityCooldownUntil - Date.now()) / 1000));
-      setConnectivityCooldownSeconds(secondsLeft);
-      if (secondsLeft === 0) {
-        setConnectivityCooldownUntil(null);
-      }
-    };
-
-    tick();
-    const timer = window.setInterval(tick, 250);
-    return () => window.clearInterval(timer);
-  }, [connectivityCooldownUntil]);
-
-  const onCheckConnectivity = async () => {
-    if (isCheckingConnectivity || isConnectivityCooldownActive) return;
-    const ok = await checkConnectivity();
-    if (ok) {
-      setConnectivityCooldownUntil(Date.now() + 60_000);
-    }
-  };
+  const totalModels = models.length;
+  const installedModels = models.filter((model) => installedById.get(model.id)?.installed).length;
+  const activeDownloads = Array.from(downloadProgress.values()).filter((entry) => (entry.progressPct ?? 0) < 100).length;
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="inline-flex items-center gap-2">
-            <Boxes />
-            Model Library
-          </h1>
-          <Button
-            variant="outline"
-            onClick={() => void onCheckConnectivity()}
-            disabled={isCheckingConnectivity || isConnectivityCooldownActive}
-          >
-            {isCheckingConnectivity
-              ? "Checking..."
-              : isConnectivityCooldownActive
-                ? `Check in ${connectivityCooldownSeconds}s`
-                : "Check connectivity"}
-          </Button>
+    <div className="space-y-8">
+      <header className="space-y-5 rounded-xl border bg-card px-5 py-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="inline-flex items-center gap-2 text-2xl font-semibold tracking-tight md:text-3xl">
+              <Boxes className="size-5" />
+              Model Library
+            </h1>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Browse model families, install once, and keep transcription fully offline.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{installedModels}/{totalModels} installed</Badge>
+            {activeDownloads > 0 && <Badge variant="secondary">{activeDownloads} downloading</Badge>}
+          </div>
         </div>
-        <p>Download once from Hugging Face, then run offline.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          {connectivityStatus === "offline" && <Badge variant="destructive">No internet</Badge>}
-          {connectivityStatus === "online" && <Badge variant="secondary">Online</Badge>}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {connectivityStatus === "offline" && <Badge variant="destructive">No internet</Badge>}
+            {connectivityStatus === "online" && <Badge variant="secondary">Online</Badge>}
+            {connectivityDetail ? <p className="text-sm text-muted-foreground">{connectivityDetail}</p> : null}
+          </div>
         </div>
-        {connectivityDetail ? <p>{connectivityDetail}</p> : null}
       </header>
 
       {modelsByLab.map(([lab, labModels]) => {
         const LabIcon = lab === "OpenAI Whisper" ? Brain : FlaskConical;
+        const installedCount = labModels.filter((model) => installedById.get(model.id)?.installed).length;
         return (
-          <section key={lab} className="space-y-3">
-            <div className="flex items-center gap-2">
-              <LabIcon className="size-4" />
-              <h2>{lab}</h2>
-            </div>
+          <Card key={lab}>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <LabIcon className="size-4" />
+                <CardTitle className="text-xl tracking-tight">{lab}</CardTitle>
+                <Badge variant="secondary" className="ml-auto">
+                  {installedCount}/{labModels.length} installed
+                </Badge>
+              </div>
+            </CardHeader>
+            <Separator />
+            <CardContent className="space-y-4 pt-6 pb-6">
             {lab === "Distil-Whisper" && (
               <Alert>
                 <InfoIcon className="size-4" />
@@ -159,85 +121,77 @@ export function ModelsPage() {
                 </AlertDescription>
               </Alert>
             )}
-            <ItemGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {labModels.map((model) => {
-          const installedModel = installedById.get(model.id);
-          const progress = progressByModelId.get(model.id);
-          const {
-            progressValue,
-            hasProgress,
-            isInstalled,
-            isDownloading,
-            actionLabel,
-            installButtonVariant,
-          } = getModelCardState({
-            installedModel,
-            progress,
-          });
+                const installedModel = installedById.get(model.id);
+                const progress = progressByModelId.get(model.id);
+                const {
+                  progressValue,
+                  hasProgress,
+                  isInstalled,
+                  isDownloading,
+                  actionLabel,
+                  installButtonVariant,
+                } = getModelCardState({
+                  installedModel,
+                  progress,
+                });
 
                 return (
-                  <Item
-                    key={model.id}
-                    variant="outline"
-                    className="h-full px-4 py-4"
-                  >
-              <ItemHeader className="items-start">
-                <ItemTitle>{model.name}</ItemTitle>
-                <ItemActions className="flex-wrap justify-end gap-1.5">
-                  <Badge variant="outline" className="font-mono">
-                    {model.id} ({formatBytes(model.sizeBytes)})
-                  </Badge>
-                  {model.recommended && <Badge variant="secondary">Recommended</Badge>}
-                  {model.fastest && <Badge variant="outline">Optimized for speed</Badge>}
-                  {model.bestQuality && <Badge variant="secondary">High accuracy</Badge>}
-                </ItemActions>
-              </ItemHeader>
+                  <Card key={model.id} className="h-full">
+                    <CardHeader className="gap-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <CardTitle className="text-base">{model.name}</CardTitle>
+                        <Badge variant="outline" className="font-mono">
+                          {model.id} ({formatBytes(model.sizeBytes)})
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {model.recommended && <Badge variant="secondary">Recommended</Badge>}
+                        {model.fastest && <Badge variant="outline">Optimized for speed</Badge>}
+                        {model.bestQuality && <Badge variant="secondary">High accuracy</Badge>}
+                      </div>
+                      <CardDescription className="leading-relaxed">{model.description}</CardDescription>
+                    </CardHeader>
 
-              <ItemContent className="gap-3 md:grid md:grid-cols-[1fr_auto] md:gap-4">
-                <div className="space-y-3">
-                  <ItemDescription>{model.description}</ItemDescription>
-                </div>
+                    <CardContent className="flex-1 space-y-2">
+                      {hasProgress && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2 text-sm">
+                            <span>{isDownloading ? "Downloading model" : "Download complete"}</span>
+                            <span>{Math.round(progressValue)}%</span>
+                          </div>
+                          <Progress value={progressValue} aria-label={`Download progress for ${model.name}`} />
+                        </div>
+                      )}
+                    </CardContent>
 
-                {hasProgress && (
-                  <div className="space-y-2 p-2 md:min-w-56">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>
-                        {isDownloading ? "Downloading model" : "Download complete"}
-                      </span>
-                      <span>{Math.round(progressValue)}%</span>
-                    </div>
-                    <Progress value={progressValue} aria-label={`Download progress for ${model.name}`} />
-                  </div>
-                )}
-              </ItemContent>
-
-              <ItemFooter className="mt-2 justify-start">
-                <ItemActions className="grid w-full grid-cols-2 gap-2">
-                  <Button
-                    className="w-full"
-                    variant={installButtonVariant}
-                    disabled={isDownloading || isCheckingConnectivity}
-                    onClick={() => void handleDownload(model.id, isInstalled).catch(() => undefined)}
-                  >
-                    {isInstalled ? <RefreshCcw /> : <Download />}
-                    {isDownloading ? "Downloading..." : actionLabel}
-                  </Button>
-                  <Button
-                    className="w-full"
-                    variant="destructive"
-                    disabled={!isInstalled || isDownloading}
-                    onClick={() => openRemoveConfirmation(model.id)}
-                  >
-                    <Trash2 />
-                    Remove model
-                  </Button>
-                </ItemActions>
-              </ItemFooter>
-                  </Item>
+                    <CardFooter className="mt-auto grid grid-cols-2 gap-2">
+                      <Button
+                        className="w-full"
+                        variant={installButtonVariant}
+                        disabled={isDownloading}
+                        onClick={() => void handleDownload(model.id, isInstalled).catch(() => undefined)}
+                      >
+                        {isInstalled ? <RefreshCcw /> : <Download />}
+                        {isDownloading ? "Downloading..." : actionLabel}
+                      </Button>
+                      <Button
+                        className="w-full"
+                        variant="destructive"
+                        disabled={!isInstalled || isDownloading}
+                        onClick={() => openRemoveConfirmation(model.id)}
+                      >
+                        <Trash2 />
+                        Remove model
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 );
               })}
-            </ItemGroup>
-          </section>
+            </div>
+            </CardContent>
+          </Card>
         );
       })}
 
@@ -252,7 +206,7 @@ export function ModelsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void confirmRemove()} disabled={!pendingModel}>
+            <AlertDialogAction variant="destructive" onClick={() => void confirmRemove()} disabled={!pendingModel}>
               Remove model
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -272,7 +226,7 @@ export function ModelsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void confirmRedownload()} disabled={!pendingRedownloadModel}>
+            <AlertDialogAction variant="secondary" onClick={() => void confirmRedownload()} disabled={!pendingRedownloadModel}>
               Re-download model
             </AlertDialogAction>
           </AlertDialogFooter>
