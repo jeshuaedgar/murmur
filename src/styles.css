@@ -75,6 +75,10 @@ label {
   display: block;
   margin: 10px 0;
 }
+.muted {
+  color: #50626a;
+  font-size: 13px;
+}
 input,
 select {
   margin-left: 6px;

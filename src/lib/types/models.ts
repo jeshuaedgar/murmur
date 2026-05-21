@@ -28,3 +28,9 @@ export type DownloadProgressEvent = {
   totalBytes?: number;
   progressPct?: number;
 };
+
+export type AudioInputDevice = {
+  id: string;
+  label: string;
+  isDefault: boolean;
+};

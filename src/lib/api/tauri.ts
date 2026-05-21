@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AppSettings } from "../types/settings";
 import type {
+  AudioInputDevice,
   DownloadTaskInfo,
   InstalledModel,
   ModelInfo,
@@ -20,6 +21,13 @@ export const api = {
     invoke<TranscriptionResult>("transcribe_file", { path, options }),
   transcribeRecording: (path: string, options: TranscriptionOptions) =>
     invoke<TranscriptionResult>("transcribe_recording", { path, options }),
+  startTranscriptionFile: (path: string, options: TranscriptionOptions) =>
+    invoke<{ taskId: string; status: string }>("start_transcription_file", {
+      path,
+      options,
+    }),
+  cancelTranscription: (taskId: string) =>
+    invoke<void>("cancel_transcription", { taskId }),
   transcribePcm: (
     samples: number[],
     sampleRate: number,
@@ -31,5 +39,5 @@ export const api = {
       options,
     }),
   getAppDataDir: () => invoke<string>("get_app_data_dir"),
-  getAudioInputs: () => invoke<string[]>("get_audio_inputs"),
+  getAudioInputs: () => invoke<AudioInputDevice[]>("get_audio_inputs"),
 };
