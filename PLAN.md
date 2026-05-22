@@ -220,54 +220,56 @@ Legend:
 
 ### A) Visual Form and Information Hierarchy
 
-- [ ] Convert overlay to compact icon/pill presentation as default footprint
-- [ ] Add expanded transcript panel on demand without losing compact quick-access mode
-- [ ] Prioritize primary action (record/stop) visually over pin/close secondary controls
-- [ ] Clarify state hierarchy with explicit labeled states: `Idle`, `Recording`, `Transcribing`, `Done`, `Error`
-- [ ] Improve microcopy for each state and transition edge case
+- [x] Convert overlay to compact icon/pill presentation as default footprint
+- [x] Add expanded transcript panel on demand without losing compact quick-access mode
+- [x] Prioritize primary action (record/stop) visually over pin/close secondary controls
+- [x] Clarify state hierarchy with explicit labeled states: `Idle`, `Recording`, `Transcribing`, `Done`, `Error`
+- [x] Improve microcopy for each state and transition edge case
+- [x] Apply visual polish pass to reduce noise (clean hierarchy, calmer status treatment, tighter spacing)
 
 ### B) Active Transcribing Motion and Waveform
 
-- [ ] Install ElevenLabs UI waveform component via `npx @elevenlabs/cli@latest components add waveform`
-- [ ] Verify component setup and styling compatibility with existing UI system
-- [ ] Integrate waveform animation into compact overlay while `Transcribing` is active
+- [x] Install ElevenLabs UI waveform component via `npx @elevenlabs/cli@latest components add waveform`
+- [x] Verify component setup and styling compatibility with existing UI system
+- [x] Integrate waveform animation into compact overlay while `Transcribing` is active
 - [ ] Add reduced-motion fallback and avoid noisy animation loops
 
 ### C) Transcript Completion and Auto-Paste
 
-- [ ] Auto-paste transcribed text to active target immediately after completion
-- [ ] Preserve existing hotkey and transcription lifecycle behavior
-- [ ] Keep completion transcript visible in overlay (`Done`) until next recording or clear
-- [ ] Guard against duplicate auto-paste on repeated completion events
+- [x] Auto-paste transcribed text to active target immediately after completion
+- [x] Preserve existing hotkey and transcription lifecycle behavior
+- [x] Keep completion transcript visible in overlay (`Done`) until next recording or clear
+- [x] Guard against duplicate auto-paste on repeated completion events
 
 ### D) Controls and Overlay Enabled Semantics
 
-- [ ] Keep hide/close affordance available but de-emphasized versus primary action
-- [ ] Make disabled close/hide behavior explicit when `overlayEnabled` prevents hiding
-- [ ] Add tooltip/inline helper copy explaining why close is unavailable
-- [ ] Maintain pin behavior and improve control spacing/hit targets
+- [x] Keep hide/close affordance available but de-emphasized versus primary action
+- [x] Make disabled close/hide behavior explicit when `overlayEnabled` prevents hiding
+- [x] Add tooltip/inline helper copy explaining why close is unavailable
+- [x] Maintain pin behavior and improve control spacing/hit targets
 
 ### E) Accessibility and Keyboard
 
 - [ ] Validate keyboard focus order in compact and expanded modes
-- [ ] Ensure Enter/Space trigger primary action and Escape follows overlay policy
-- [ ] Add ARIA labels for all control buttons and waveform context
-- [ ] Add `aria-live` announcements for state changes (`polite`) and errors (`assertive`)
+- [x] Ensure Enter/Space trigger primary action and Escape follows overlay policy
+- [x] Add ARIA labels for all control buttons and waveform context
+- [x] Add `aria-live` announcements for state changes (`polite`) and errors (`assertive`)
 - [ ] Validate color contrast across all states (especially Recording/Error)
 
 ### F) Code Quality and Regression Safety
 
-- [ ] Refactor overlay state rendering to a single maintainable state-to-UI mapping
-- [ ] Keep non-overlay routes untouched and verify no cross-route regressions
-- [ ] Add/update component/integration tests for all core overlay states
-- [ ] Add tests for auto-paste completion flow and disabled hide behavior
-- [ ] Keep build/test/cargo checks green
+- [x] Refactor overlay state rendering to a single maintainable state-to-UI mapping
+- [x] Keep overlay redesign covered by focused UI tests and smoke checks (`npm run test`, `npm run build`)
+- [x] Keep non-overlay routes untouched and verify no cross-route regressions
+- [x] Add/update component/integration tests for all core overlay states
+- [x] Add tests for auto-paste completion flow and disabled hide behavior
+- [x] Keep build/test/cargo checks green
 
 ### G) Verification Checklist (Must Run)
 
-- [ ] `npm run test`
-- [ ] `npm run build`
-- [ ] `cargo check` (run in `src-tauri`)
+- [x] `npm run test`
+- [x] `npm run build`
+- [x] `cargo check` (run in `src-tauri`)
 
 ### H) Execution Order
 
