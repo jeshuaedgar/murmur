@@ -21,7 +21,7 @@ type UseTranscriptionActionsParams = {
   setRawTranscript: Dispatch<SetStateAction<string>>;
   setCleanupStrategy: Dispatch<SetStateAction<CleanupStrategy>>;
   setActiveTranscriptionTaskId: Dispatch<SetStateAction<string | null>>;
-  copyText: (text: string) => Promise<void>;
+  finalizeCompletionOutput: (text: string, completionId: string) => Promise<void>;
   refreshBrowserAudioInputs: () => Promise<void>;
 };
 
@@ -89,7 +89,7 @@ export function useTranscriptionActions({
   setRawTranscript,
   setCleanupStrategy,
   setActiveTranscriptionTaskId,
-  copyText,
+  finalizeCompletionOutput,
   refreshBrowserAudioInputs,
 }: UseTranscriptionActionsParams) {
   const streamRef = useRef<MediaStream | null>(null);
@@ -203,6 +203,7 @@ export function useTranscriptionActions({
 
       const normalized = normalizeTranscriptText(result.text);
       const cleanup = await runCleanupPipeline(normalized, settings, result.language);
+      const completedText = cleanup.cleaned.length > 0 ? cleanup.cleaned : cleanup.raw;
       setRawTranscript((current) => {
         if (!current.trim()) return normalized;
         return `${current.trimEnd()} ${normalized}`;
@@ -214,8 +215,8 @@ export function useTranscriptionActions({
           if (!current.trim()) return cleanup.cleaned;
           return `${current.trimEnd()} ${cleanup.cleaned}`;
         });
-        if (settings.autoCopy) await copyText(cleanup.cleaned);
       }
+      await finalizeCompletionOutput(completedText, `recording:${Date.now()}`);
 
       // Keep local WAV files as a convenience, but do not fail transcription if permissions block writes.
       try {

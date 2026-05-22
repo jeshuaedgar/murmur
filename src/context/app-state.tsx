@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { api } from "@/lib/api/tauri";
 import type { AppSettings } from "@/lib/types/settings";
@@ -15,6 +16,7 @@ import { useTranscriptionActions } from "@/context/hooks/use-transcription-actio
 import type { AppStateValue } from "@/context/types/app-state";
 import { getErrorMessage, toastError, toastSuccess } from "@/lib/toast";
 import type { CleanupStrategy } from "@/features/transcription/cleanup/types";
+import { shouldApplyAutoPaste } from "@/context/lib/auto-paste-guard";
 
 const AppStateContext = createContext<AppStateValue | null>(null);
 
@@ -26,6 +28,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     language: "auto",
     translate: false,
     autoCopy: false,
+    autoPaste: true,
     startAtLogin: false,
     liveMode: true,
     audioInputDeviceId: null,
@@ -58,10 +61,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const settingsRef = useRef(settings);
   const autoCopyEnabledRef = useRef(settings.autoCopy);
+  const autoPasteEnabledRef = useRef(settings.autoPaste);
+  const appliedAutoPasteCompletionIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     settingsRef.current = settings;
     autoCopyEnabledRef.current = settings.autoCopy;
+    autoPasteEnabledRef.current = settings.autoPaste;
   }, [settings]);
 
   const installedById = useMemo(() => new Map(installed.map((model) => [model.id, model])), [installed]);
@@ -72,6 +78,32 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     await navigator.clipboard.writeText(text);
+  }
+
+  async function autoPasteText(text: string, completionId?: string) {
+    const next = text.trim();
+    if (!next) return;
+    if (completionId && !shouldApplyAutoPaste(appliedAutoPasteCompletionIdsRef.current, completionId)) return;
+    try {
+      if (isTauriRuntime) {
+        await api.pasteText(next);
+      } else {
+        await copyText(next);
+      }
+    } catch {
+      await copyText(next);
+      toastSuccess("Copied transcript", "Auto-paste was unavailable, so text was copied.");
+    }
+  }
+
+  async function finalizeCompletionOutput(text: string, completionId: string) {
+    const next = text.trim();
+    if (!next) return;
+    if (autoCopyEnabledRef.current) {
+      await copyText(next);
+    }
+    if (!autoPasteEnabledRef.current) return;
+    await autoPasteText(next, completionId);
   }
 
   const { refreshBrowserAudioInputs } = useBrowserAudioInputs({
@@ -93,7 +125,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setRawTranscript,
       setCleanupStrategy,
       setActiveTranscriptionTaskId,
-      copyText,
+      finalizeCompletionOutput,
       refreshBrowserAudioInputs,
     });
 
@@ -111,21 +143,41 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setRawTranscript,
     setCleanupStrategy,
     refreshBrowserAudioInputs,
-    copyText,
-    autoCopyEnabledRef,
+    finalizeCompletionOutput,
     settingsRef,
     teardownRecordingResources,
   });
 
+  useEffect(() => {
+    if (!isTauriRuntime) return;
+    let active = true;
+    const unlistenPromises = [
+      listen("tray-start-recording", () => {
+        if (!active || isRecording) return;
+        void startRecording().catch((error) => toastError(error, "Recording failed"));
+      }),
+      listen("tray-stop-recording", () => {
+        if (!active || !isRecording) return;
+        void stopRecordingAndTranscribe().catch((error) => toastError(error, "Recording failed"));
+      }),
+    ];
+    return () => {
+      active = false;
+      unlistenPromises.forEach((promise) => {
+        void promise.then((unlisten) => unlisten());
+      });
+    };
+  }, [isRecording, startRecording, stopRecordingAndTranscribe]);
+
   async function saveSettings() {
     try {
+      await api.setOverlayShortcut(settings.overlayShortcut);
       await Promise.all([
-        api.saveSettings(settings),
         api.setStartAtLogin(settings.startAtLogin),
-        api.setOverlayShortcut(settings.overlayShortcut),
         api.setOverlayPinned(settings.overlayPinned),
         api.setOverlayEnabled(settings.overlayEnabled),
       ]);
+      await api.saveSettings(settings);
       setStatus("settings saved");
       toastSuccess("Settings saved");
     } catch (error) {

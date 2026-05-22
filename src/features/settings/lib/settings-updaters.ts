@@ -10,6 +10,7 @@ export const updateDefaultModelId = updateSetting("defaultModelId");
 export const updateLanguage = updateSetting("language");
 export const updateTranslate = updateSetting("translate");
 export const updateAutoCopy = updateSetting("autoCopy");
+export const updateAutoPaste = updateSetting("autoPaste");
 export const updateStartAtLogin = updateSetting("startAtLogin");
 export const updateCleanupEnabled = updateSetting("cleanupEnabled");
 export const updateLiveCleanupEnabled = updateSetting("liveCleanupEnabled");

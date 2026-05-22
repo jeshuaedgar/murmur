@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { Dispatch, SetStateAction, MutableRefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "@/lib/api/tauri";
 import type { AppSettings } from "@/lib/types/settings";
@@ -37,8 +37,7 @@ type UseAppBootstrapParams = {
   setRawTranscript: Dispatch<SetStateAction<string>>;
   setCleanupStrategy: Dispatch<SetStateAction<CleanupStrategy>>;
   refreshBrowserAudioInputs: () => Promise<void>;
-  copyText: (text: string) => Promise<void>;
-  autoCopyEnabledRef: MutableRefObject<boolean>;
+  finalizeCompletionOutput: (text: string, completionId: string) => Promise<void>;
   settingsRef: MutableRefObject<AppSettings>;
   teardownRecordingResources: () => void;
 };
@@ -57,8 +56,7 @@ export function useAppBootstrap({
   setRawTranscript,
   setCleanupStrategy,
   refreshBrowserAudioInputs,
-  copyText,
-  autoCopyEnabledRef,
+  finalizeCompletionOutput,
   settingsRef,
   teardownRecordingResources,
 }: UseAppBootstrapParams) {
@@ -241,12 +239,11 @@ export function useAppBootstrap({
                 event.payload.result.language,
               );
               const nextText = cleanup.cleaned;
+              const completedText = nextText.length > 0 ? nextText : cleanup.raw;
               setRawTranscript(cleanup.raw);
               setCleanupStrategy(cleanup.strategy);
               setTranscript(nextText);
-              if (autoCopyEnabledRef.current && nextText) {
-                await copyText(nextText);
-              }
+              await finalizeCompletionOutput(completedText, `file:${event.payload.taskId}`);
               try {
                 await api.saveTranscription({
                   sourceType: "file",

@@ -151,6 +151,7 @@ fn validate_settings_value(value: &serde_yaml::Value) -> ValidatedSettings {
         ),
         translate: parse_bool(get("translate"), "translate", defaults.translate, &mut invalid_keys),
         auto_copy: parse_bool(get("autoCopy"), "autoCopy", defaults.auto_copy, &mut invalid_keys),
+        auto_paste: parse_bool(get("autoPaste"), "autoPaste", defaults.auto_paste, &mut invalid_keys),
         start_at_login: parse_bool(
             get("startAtLogin"),
             "startAtLogin",
@@ -364,6 +365,7 @@ defaultModelId: small
 language: auto
 translate: false
 autoCopy: true
+autoPaste: true
 startAtLogin: false
 liveMode: true
 audioInputDeviceId: null
@@ -387,5 +389,6 @@ overlayEnabled: true
         assert!(validated.invalid_keys.is_empty());
         assert_eq!(validated.settings.default_model_id, "small");
         assert!(validated.settings.auto_copy);
+        assert!(validated.settings.auto_paste);
     }
 }

@@ -1,6 +1,7 @@
 use crate::state::app_state::AppState;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 const OVERLAY_WINDOW_LABEL: &str = "overlay";
 
@@ -114,4 +115,36 @@ pub async fn set_overlay_enabled(
     } else {
         Err("overlay window is unavailable".to_string())
     }
+}
+
+#[tauri::command]
+pub fn paste_text(app: AppHandle, text: String) -> Result<(), String> {
+    if text.trim().is_empty() {
+        return Ok(());
+    }
+
+    app.clipboard()
+        .write_text(text)
+        .map_err(|err| err.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = std::process::Command::new("osascript")
+            .args([
+                "-e",
+                "tell application \"System Events\" to keystroke \"v\" using command down",
+            ])
+            .status()
+            .map_err(|err| err.to_string())?;
+        if !status.success() {
+            return Err("failed to trigger paste keystroke".to_string());
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        return Err("auto-paste keystroke is currently available on macOS only".to_string());
+    }
+
+    Ok(())
 }

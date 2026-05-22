@@ -17,6 +17,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toastError, toastSuccess, toastWarning } from "@/lib/toast";
 import { isTauriRuntime } from "@/lib/runtime/tauri";
+import { formatTranscriptAsJson, formatTranscriptAsMd, formatTranscriptAsTxt } from "@/features/transcription/lib/export-formatters";
+import { saveTranscriptExport } from "@/lib/export/save-transcript";
 
 const PAGE_SIZE = 50;
 
@@ -31,6 +33,7 @@ export function HistoryPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [pinnedOnly, setPinnedOnly] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [stats, setStats] = useState<TranscriptionHistoryStats | null>(null);
@@ -38,7 +41,7 @@ export function HistoryPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<
-    "import" | "export-json" | "export-csv" | "export-zip" | "delete" | "restore" | "pin" | "save-edit" | "copy" | null
+    "import" | "export-json" | "export-csv" | "export-zip" | "delete" | "restore" | "pin" | "save-edit" | "copy" | "copy-raw" | "export-selected" | null
   >(null);
 
   const selected = useMemo(
@@ -59,6 +62,7 @@ export function HistoryPage() {
         limit: PAGE_SIZE,
         offset: nextOffset,
         includeDeleted,
+        pinnedOnly,
         query: query.trim() || undefined,
       });
       const merged = reset ? next : [...items, ...next];
@@ -80,7 +84,7 @@ export function HistoryPage() {
 
   useEffect(() => {
     void load(true);
-  }, [includeDeleted]);
+  }, [includeDeleted, pinnedOnly]);
 
   async function onTogglePin(item: TranscriptionRecord) {
     if (pendingAction) return;
@@ -132,6 +136,52 @@ export function HistoryPage() {
       toastSuccess("Cleaned text copied");
     } catch (error) {
       toastError(error, "Failed to copy cleaned text");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function onCopyRaw(item: TranscriptionRecord) {
+    if (pendingAction) return;
+    setPendingAction("copy-raw");
+    try {
+      await navigator.clipboard.writeText(item.rawText);
+      toastSuccess("Raw text copied");
+    } catch (error) {
+      toastError(error, "Failed to copy raw text");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function onExportSelected(item: TranscriptionRecord, format: "txt" | "md" | "json") {
+    if (pendingAction) return;
+    setPendingAction("export-selected");
+    try {
+      const payload = {
+        rawText: item.rawText,
+        cleanedText: item.cleanedText,
+        modelId: item.modelId,
+        language: item.language ?? null,
+        translated: item.translated,
+        sourceType: item.sourceType === "recording" || item.sourceType === "file" || item.sourceType === "live" ? item.sourceType : "unknown",
+        createdAt: item.createdAt,
+        cleanupStrategy: item.cleanupStrategy,
+        durationMs: item.durationMs ?? null,
+        audioPath: item.audioPath ?? null,
+      } as const;
+      const content =
+        format === "txt"
+          ? formatTranscriptAsTxt(payload)
+          : format === "md"
+            ? formatTranscriptAsMd(payload)
+            : formatTranscriptAsJson(payload);
+      const result = await saveTranscriptExport(content, format);
+      if (result.saved) {
+        toastSuccess(`Entry exported as ${format.toUpperCase()}`, result.targetPath ? result.targetPath : undefined);
+      }
+    } catch (error) {
+      toastError(error, `Failed to export ${format.toUpperCase()}`);
     } finally {
       setPendingAction(null);
     }
@@ -310,15 +360,29 @@ export function HistoryPage() {
               {isLoading ? <Spinner /> : <Search data-icon="inline-start" />}
               {isLoading ? "Searching..." : "Search"}
             </Button>
+            {query.trim().length > 0 ? (
+              <Button variant="ghost" onClick={() => { setQuery(""); void load(true); }} disabled={isLoading || isBusy}>
+                Clear
+              </Button>
+            ) : null}
           </div>
 
-          <Button
-            variant={includeDeleted ? "secondary" : "outline"}
-            onClick={() => setIncludeDeleted((current) => !current)}
-            disabled={isBusy}
-          >
-            {includeDeleted ? "Showing deleted entries" : "Show deleted entries"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={includeDeleted ? "secondary" : "outline"}
+              onClick={() => setIncludeDeleted((current) => !current)}
+              disabled={isBusy}
+            >
+              {includeDeleted ? "Showing deleted entries" : "Show deleted entries"}
+            </Button>
+            <Button
+              variant={pinnedOnly ? "secondary" : "outline"}
+              onClick={() => setPinnedOnly((current) => !current)}
+              disabled={isBusy}
+            >
+              {pinnedOnly ? "Pinned only" : "All pin states"}
+            </Button>
+          </div>
 
           {!isTauriRuntime ? (
             <p className="text-xs text-muted-foreground">
@@ -536,6 +600,14 @@ export function HistoryPage() {
                     <Button variant="outline" className="w-full sm:w-auto" onClick={() => void onCopyCleaned(selected)} disabled={isBusy}>
                       Copy cleaned text
                     </Button>
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => void onCopyRaw(selected)} disabled={isBusy}>
+                      Copy raw text
+                    </Button>
+                    <ButtonGroup className="w-full sm:w-auto">
+                      <Button variant="outline" onClick={() => void onExportSelected(selected, "txt")} disabled={isBusy}>TXT</Button>
+                      <Button variant="outline" onClick={() => void onExportSelected(selected, "md")} disabled={isBusy}>MD</Button>
+                      <Button variant="outline" onClick={() => void onExportSelected(selected, "json")} disabled={isBusy}>JSON</Button>
+                    </ButtonGroup>
                     <Button variant="outline" className="w-full sm:w-auto" onClick={() => void onTogglePin(selected)} disabled={isBusy}>
                       {selected.pinned ? "Unpin" : "Pin"}
                     </Button>

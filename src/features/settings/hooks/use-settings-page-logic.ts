@@ -5,6 +5,7 @@ import { compareLabs } from "@/features/models/lib/lab-order";
 import {
   updateAudioInputDeviceId,
   updateAutoCopy,
+  updateAutoPaste,
   updateCleanupEnabled,
   updateCleanupLatencyBudgetMs,
   updateCleanupShowRawToggle,
@@ -132,6 +133,10 @@ export function useSettingsPageLogic({
     (checked: boolean) => setSettings(updateAutoCopy(checked)),
     [setSettings],
   );
+  const onAutoPasteChange = useCallback(
+    (checked: boolean) => setSettings(updateAutoPaste(checked)),
+    [setSettings],
+  );
   const onStartAtLoginChange = useCallback(
     (checked: boolean) => setSettings(updateStartAtLogin(checked)),
     [setSettings],
@@ -198,6 +203,7 @@ export function useSettingsPageLogic({
     onAudioInputChange,
     onTranslateChange,
     onAutoCopyChange,
+    onAutoPasteChange,
     onStartAtLoginChange,
     onCleanupEnabledChange,
     onLiveCleanupEnabledChange,

@@ -22,6 +22,8 @@ const MAIN_WINDOW_LABEL: &str = "main";
 const OVERLAY_WINDOW_LABEL: &str = "overlay";
 const MENU_ID_TOGGLE_WINDOW: &str = "toggle_window";
 const MENU_ID_TOGGLE_OVERLAY: &str = "toggle_overlay";
+const MENU_ID_START_RECORDING: &str = "start_recording";
+const MENU_ID_STOP_RECORDING: &str = "stop_recording";
 const MENU_ID_QUIT_APP: &str = "quit_app";
 
 fn toggle_main_window(window: &WebviewWindow) {
@@ -125,9 +127,19 @@ pub fn run() {
                     MenuItemBuilder::with_id(MENU_ID_TOGGLE_WINDOW, "Show/Hide").build(app)?;
                 let toggle_overlay_item =
                     MenuItemBuilder::with_id(MENU_ID_TOGGLE_OVERLAY, "Toggle Overlay").build(app)?;
+                let start_recording_item =
+                    MenuItemBuilder::with_id(MENU_ID_START_RECORDING, "Start recording").build(app)?;
+                let stop_recording_item =
+                    MenuItemBuilder::with_id(MENU_ID_STOP_RECORDING, "Stop recording").build(app)?;
                 let quit_item = MenuItemBuilder::with_id(MENU_ID_QUIT_APP, "Quit").build(app)?;
                 let tray_menu = MenuBuilder::new(app)
-                    .items(&[&toggle_item, &toggle_overlay_item, &quit_item])
+                    .items(&[
+                        &toggle_item,
+                        &toggle_overlay_item,
+                        &start_recording_item,
+                        &stop_recording_item,
+                        &quit_item,
+                    ])
                     .build()?;
 
                 let startup_settings = commands::settings::get_settings(app.handle().clone())
@@ -189,6 +201,12 @@ pub fn run() {
                                         let _ = window.set_focus();
                                     }
                                 });
+                            }
+                            MENU_ID_START_RECORDING => {
+                                let _ = app.emit("tray-start-recording", ());
+                            }
+                            MENU_ID_STOP_RECORDING => {
+                                let _ = app.emit("tray-stop-recording", ());
                             }
                             MENU_ID_QUIT_APP => {
                                 quit_requested.store(true, Ordering::SeqCst);
@@ -288,6 +306,7 @@ pub fn run() {
             commands::overlay::set_overlay_shortcut,
             commands::overlay::set_overlay_pinned,
             commands::overlay::set_overlay_enabled,
+            commands::overlay::paste_text,
             commands::transcription::transcribe_file,
             commands::transcription::transcribe_recording,
             commands::transcription::transcribe_pcm,

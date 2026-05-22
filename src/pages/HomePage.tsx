@@ -94,9 +94,9 @@ export function HomePage() {
             ? formatTranscriptAsMd(payload)
             : formatTranscriptAsJson(payload);
 
-      const saved = await saveTranscriptExport(content, format);
-      if (!saved) return;
-      toastSuccess(`Transcript exported as ${format.toUpperCase()}`);
+      const result = await saveTranscriptExport(content, format);
+      if (!result.saved) return;
+      toastSuccess(`Transcript exported as ${format.toUpperCase()}`, result.targetPath ? result.targetPath : undefined);
     } catch (error) {
       toastError(error, `Failed to export ${format.toUpperCase()}`);
     } finally {

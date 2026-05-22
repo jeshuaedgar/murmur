@@ -29,12 +29,17 @@ function triggerBrowserDownload(content: string, format: ExportFormat, fileName:
   URL.revokeObjectURL(url);
 }
 
-export async function saveTranscriptExport(content: string, format: ExportFormat): Promise<boolean> {
+export type SaveTranscriptExportResult = {
+  saved: boolean;
+  targetPath?: string;
+};
+
+export async function saveTranscriptExport(content: string, format: ExportFormat): Promise<SaveTranscriptExportResult> {
   const defaultPath = buildDefaultFileName(format);
 
   if (!isTauriRuntime) {
     triggerBrowserDownload(content, format, defaultPath);
-    return true;
+    return { saved: true, targetPath: defaultPath };
   }
 
   const filePath = await save({
@@ -43,8 +48,8 @@ export async function saveTranscriptExport(content: string, format: ExportFormat
     filters: [{ name: format.toUpperCase(), extensions: [EXT_BY_FORMAT[format]] }],
   });
 
-  if (!filePath) return false;
+  if (!filePath) return { saved: false };
 
   await writeTextFile(filePath, content);
-  return true;
+  return { saved: true, targetPath: filePath };
 }

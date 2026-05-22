@@ -72,6 +72,7 @@ export function SettingsPage() {
     onAudioInputChange,
     onTranslateChange,
     onAutoCopyChange,
+    onAutoPasteChange,
     onStartAtLoginChange,
     onCleanupEnabledChange,
     onLiveCleanupEnabledChange,
@@ -123,6 +124,7 @@ export function SettingsPage() {
   const automationEnabledCount = [
     settings.translate,
     settings.autoCopy,
+    settings.autoPaste,
     settings.cleanupEnabled,
     settings.liveCleanupEnabled,
     settings.cleanupShowRawToggle,
@@ -471,6 +473,14 @@ export function SettingsPage() {
               <p className="text-sm text-muted-foreground">Copy finished transcript text directly to the clipboard.</p>
               </div>
               <Switch id="autocopy" checked={settings.autoCopy} onCheckedChange={onAutoCopyChange} />
+            </div>
+            <Separator />
+            <div className="flex items-start justify-between gap-4 py-1">
+              <div className="flex flex-col gap-1">
+              <Label htmlFor="autopaste">Auto-paste after completion</Label>
+              <p className="text-sm text-muted-foreground">Paste into the active app once each time transcription completes.</p>
+              </div>
+              <Switch id="autopaste" checked={settings.autoPaste} onCheckedChange={onAutoPasteChange} />
             </div>
             <Separator />
             <div className="flex items-start justify-between gap-4 py-1">

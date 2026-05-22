@@ -3,6 +3,7 @@ export type AppSettings = {
   language: string;
   translate: boolean;
   autoCopy: boolean;
+  autoPaste: boolean;
   startAtLogin: boolean;
   liveMode: boolean;
   audioInputDeviceId?: string | null;
