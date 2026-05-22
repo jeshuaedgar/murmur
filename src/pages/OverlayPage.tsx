@@ -13,41 +13,56 @@ import { toastError } from "@/lib/toast";
 
 type OverlayUiState = "idle" | "recording" | "transcribing" | "done" | "error";
 
-const UI_STATE_META: Record<OverlayUiState, { label: string; headline: string; detail: string; badge: "outline" | "secondary" | "default"; tone: string; }> = {
+const UI_STATE_META: Record<
+  OverlayUiState,
+  {
+    label: string;
+    headline: string;
+    detail: string;
+    badge: "outline" | "secondary" | "default";
+    tone: string;
+    accent: string;
+  }
+> = {
   idle: {
     label: "Idle",
     headline: "Ready",
     detail: "Press record or use your hotkey to start.",
     badge: "outline",
-    tone: "border-border/70 bg-card text-foreground",
+    tone: "border-zinc-300/80 bg-white/85 text-zinc-900",
+    accent: "bg-zinc-500",
   },
   recording: {
     label: "Recording",
-    headline: "Listening...",
+    headline: "Listening",
     detail: "Speak naturally, then stop to transcribe.",
     badge: "secondary",
-    tone: "border-red-300/80 bg-red-50 text-red-900",
+    tone: "border-rose-300/80 bg-rose-50/95 text-rose-900",
+    accent: "bg-rose-500",
   },
   transcribing: {
     label: "Transcribing",
-    headline: "Working on your text",
+    headline: "Processing",
     detail: "A waveform shows activity while processing.",
     badge: "secondary",
-    tone: "border-sky-300/80 bg-sky-50 text-sky-900",
+    tone: "border-cyan-300/80 bg-cyan-50/95 text-cyan-900",
+    accent: "bg-cyan-500",
   },
   done: {
     label: "Done",
     headline: "Ready to paste",
     detail: "Text is prepared and auto-pasted on completion.",
     badge: "default",
-    tone: "border-emerald-300/80 bg-emerald-50 text-emerald-900",
+    tone: "border-emerald-300/80 bg-emerald-50/95 text-emerald-900",
+    accent: "bg-emerald-500",
   },
   error: {
     label: "Error",
     headline: "Could not transcribe",
     detail: "Try recording again.",
     badge: "secondary",
-    tone: "border-amber-300/80 bg-amber-50 text-amber-900",
+    tone: "border-amber-300/80 bg-amber-50/95 text-amber-900",
+    accent: "bg-amber-500",
   },
 };
 
@@ -171,30 +186,36 @@ export function OverlayPage() {
         </p>
 
         <div
-          className={`rounded-full border px-2 py-1.5 transition-all duration-150 ${stateMeta.tone}`}
+          className={`rounded-2xl border px-2 py-1.5 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.38)] backdrop-blur-sm transition-all duration-150 ${stateMeta.tone}`}
           data-tauri-drag-region
         >
           <div className="flex items-center gap-2">
-            <Badge variant={stateMeta.badge}>{stateMeta.label}</Badge>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className={`inline-block size-2 rounded-full ${stateMeta.accent}`} />
+                <p className="truncate text-sm font-semibold">{stateMeta.headline}</p>
+                <Badge variant={stateMeta.badge} className="h-5 px-2 text-[10px] uppercase tracking-[0.08em]">
+                  {stateMeta.label}
+                </Badge>
+              </div>
+            </div>
 
             {(uiState === "recording" || uiState === "transcribing") ? (
               <ScrollingWaveform
                 key={waveformSeed}
                 aria-label="Voice activity waveform"
-                className="h-6 flex-1"
-                barCount={36}
+                className="h-6 w-28 shrink-0"
+                barCount={26}
                 barGap={2}
                 barWidth={3}
                 fadeEdges={false}
                 speed={uiState === "recording" ? 56 : 34}
               />
-            ) : (
-              <p className="line-clamp-1 flex-1 text-xs font-medium">{stateMeta.headline}</p>
-            )}
+            ) : null}
 
             <Button
               aria-label={isRecording ? "Stop recording" : "Start recording"}
-              className="rounded-full px-3"
+              className="h-8 rounded-xl px-3 font-semibold"
               disabled={isTranscribing}
               onClick={() => void handleRecordToggle()}
               size="sm"
@@ -206,6 +227,7 @@ export function OverlayPage() {
             <Button
               aria-label={isExpanded ? "Collapse transcript panel" : "Expand transcript panel"}
               onClick={() => setIsExpanded((prev) => !prev)}
+              className="h-8 w-8 rounded-xl"
               size="icon"
               variant="ghost"
             >
@@ -215,12 +237,12 @@ export function OverlayPage() {
         </div>
 
         {isExpanded ? (
-          <section className="rounded-xl border border-border/70 bg-card/95 p-2 shadow-sm transition-all duration-150">
+          <section className="rounded-xl border border-zinc-300/70 bg-white/95 p-2 shadow-[0_14px_28px_-20px_rgba(0,0,0,0.45)] backdrop-blur-sm transition-all duration-150">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 {uiState === "error" ? <CircleAlert className="size-4 text-amber-600" /> : null}
                 {uiState === "done" ? <CheckCircle2 className="size-4 text-emerald-600" /> : null}
-                <p className="line-clamp-1 text-xs font-medium">{stateMeta.detail}</p>
+                <p className="line-clamp-1 text-xs font-medium text-zinc-700">{stateMeta.detail}</p>
               </div>
               <div className="flex items-center gap-1">
                 <Button disabled={!hasTranscript} onClick={() => void onCopyTranscript()} size="sm" variant="secondary">
@@ -232,8 +254,8 @@ export function OverlayPage() {
               </div>
             </div>
 
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-border/60 bg-muted/40 p-2">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/95">
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50/80 p-2">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-900">
                 {hasTranscript ? visibleTranscript : "Transcript preview will appear here."}
               </p>
             </div>
